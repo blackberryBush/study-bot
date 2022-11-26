@@ -6,6 +6,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"log"
 	"study-bot/pkg/task"
+	"study-bot/pkg/users"
 )
 
 const (
@@ -149,11 +150,13 @@ func (b *Bot) handlePoll(message *tgbotapi.Poll, chatID int) {
 
 func (b *Bot) handlePollAnswer(ans *tgbotapi.PollAnswer, chatID int) {
 	if b.oprosRun != -1 {
-		// Получить номер вопроса из базы
 		// Проверить время
-		// Проверить принадлежность опроса к пользователю
+		check := users.GetTaskByPoll(b.DB, ans.PollID, chatID)
+		if check <= 0 {
+			return
+		}
 		if len(ans.OptionIDs) == 1 {
-			if task.CheckQuestion(b.DB, 2, ans.OptionIDs[0]) {
+			if task.CheckQuestion(b.DB, check, ans.OptionIDs[0]+1) {
 				b.stat++
 			}
 		}

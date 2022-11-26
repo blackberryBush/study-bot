@@ -77,6 +77,20 @@ func InputNote(db *sql.DB, note Note) {
 	}
 }
 
+func GetTaskByPoll(db *sql.DB, pollID string, userID int) int {
+	query := fmt.Sprintf("SELECT * FROM notes WHERE poll_ID = %s AND user = %d", pollID, userID)
+	taskRow := db.QueryRow(query)
+	if taskRow.Err() != nil {
+		return -1
+	}
+	var taskNote Note
+	err := taskRow.Scan(&taskNote.User, &taskNote.PollID, &taskNote.TaskID)
+	if err != nil {
+		return -1
+	}
+	return taskNote.TaskID
+}
+
 func HasQuestion(db *sql.DB, userID int, taskID int) bool {
 	query := fmt.Sprintf("SELECT * FROM notes WHERE user = %d AND task_ID = %d", userID, taskID)
 	taskNote := db.QueryRow(query)
