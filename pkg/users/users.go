@@ -2,6 +2,7 @@ package users
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 )
@@ -11,18 +12,28 @@ type User struct {
 	pollRun  int
 	corrects int
 	regime   bool
-	worst    []int
+	worst    map[int]int
+}
+
+func NewUser(ID int) *User {
+	return &User{
+		ID:       ID,
+		pollRun:  -1,
+		corrects: 0,
+		regime:   false,
+		worst:    map[int]int{},
+	}
 }
 
 type Note struct {
-	User   int
+	UserID int
 	PollID string
 	TaskID int
 }
 
-func NewNote(user int, pollID string, taskID int) *Note {
+func NewNote(userID int, pollID string, taskID int) *Note {
 	return &Note{
-		User:   user,
+		UserID: userID,
 		PollID: pollID,
 		TaskID: taskID,
 	}
@@ -32,8 +43,8 @@ func NewNote(user int, pollID string, taskID int) *Note {
 
 func CreateUsers(db *sql.DB) {
 	query := "CREATE TABLE IF NOT EXISTS users(" +
-		"user		INTEGER PRIMARY KEY," +
-		"poll_run	INTEGER," +
+		"userID		INTEGER PRIMARY KEY," +
+		"pollRun	INTEGER," +
 		"corrects 	INTEGER," +
 		"regime 	INTEGER," +
 		"worst 		TEXT)"
@@ -43,12 +54,26 @@ func CreateUsers(db *sql.DB) {
 	}
 }
 
+func InputUser(db *sql.DB, user User) {
+	m, err := json.Marshal(user.worst)
+	if err != nil {
+		fmt.Println("Ошибка тут: ", err)
+	}
+	fmt.Printf("%s", m)
+	query := fmt.Sprintf("INSERT INTO users(userID, pollRun, corrects, regime, worst) VALUES (%d,%d,%d,%d,\"%s\")",
+		user.ID, user.pollRun, user.corrects, 0, m)
+	_, err = db.Exec(query)
+	if err != nil {
+		log.Println("или тут:", err)
+	}
+}
+
 /*
-func SetUserPoll(db *sql.DB, poll int, userID int) {
-	query := fmt.Sprintf("SELECT * FROM %s WHERE chatID = %d", tableName, chatID)
+func UpdatePollRun(db *sql.DB, poll int, userID int) {
+	query := fmt.Sprintf("SELECT * FROM users WHERE userID = %d", userID)
 	row := db.QueryRow(query)
 	if row.Err() == nil {
-		query = fmt.Sprintf("UPDATE users SET poll_run = %d WHERE user = %d", poll, UserID)
+		query = fmt.Sprintf("UPDATE users SET pollRun = %d WHERE userID = %d", poll, UserID)
 		_, err := db.Exec(query)
 	} else {
 
@@ -59,9 +84,9 @@ func SetUserPoll(db *sql.DB, poll int, userID int) {
 
 func CreateNotes(db *sql.DB) {
 	query := "CREATE TABLE IF NOT EXISTS notes(" +
-		"user		INTEGER," +
-		"poll_ID	TEXT PRIMARY KEY," +
-		"task_ID 	INTEGER)"
+		"userID		INTEGER," +
+		"pollID		TEXT PRIMARY KEY," +
+		"taskID 	INTEGER)"
 	_, err := db.Exec(query)
 	if err != nil {
 		log.Fatal(err)
@@ -69,39 +94,40 @@ func CreateNotes(db *sql.DB) {
 }
 
 func InputNote(db *sql.DB, note Note) {
-	query := fmt.Sprintf("INSERT INTO notes(user, poll_id, task_ID) VALUES (%d,%s,%d);",
-		note.User, note.PollID, note.TaskID)
+	query := fmt.Sprintf("INSERT INTO notes(userID, pollID, taskID) VALUES (%d,%s,%d);",
+		note.UserID, note.PollID, note.TaskID)
 	_, err := db.Exec(query)
 	if err != nil {
 		log.Println(err)
 	}
 }
 
-func GetTaskByPoll(db *sql.DB, pollID string, userID int) int {
-	query := fmt.Sprintf("SELECT * FROM notes WHERE poll_ID = %s AND user = %d", pollID, userID)
+func GetTask(db *sql.DB, pollID string, userID int) int {
+	query := fmt.Sprintf("SELECT * FROM notes WHERE pollID = %s AND userID = %d", pollID, userID)
 	taskRow := db.QueryRow(query)
 	if taskRow.Err() != nil {
 		return -1
 	}
 	var taskNote Note
-	err := taskRow.Scan(&taskNote.User, &taskNote.PollID, &taskNote.TaskID)
+	err := taskRow.Scan(&taskNote.UserID, &taskNote.PollID, &taskNote.TaskID)
 	if err != nil {
 		return -1
 	}
 	return taskNote.TaskID
 }
 
-func HasQuestion(db *sql.DB, userID int, taskID int) bool {
-	query := fmt.Sprintf("SELECT * FROM notes WHERE user = %d AND task_ID = %d", userID, taskID)
+// для генерации вопросов
+func HasTask(db *sql.DB, userID int, taskID int) bool {
+	query := fmt.Sprintf("SELECT * FROM notes WHERE userID = %d AND taskID = %d", userID, taskID)
 	taskNote := db.QueryRow(query)
-	if taskNote.Err() != nil {
+	if taskNote.Err() == nil {
 		return true
 	}
 	return false
 }
 
 func ClearUser(db *sql.DB, userID int) {
-	query := fmt.Sprintf("DELETE FROM notes WHERE user = %d", userID)
+	query := fmt.Sprintf("DELETE FROM notes WHERE userID = %d", userID)
 	_, err := db.Exec(query)
 	if err != nil {
 		log.Println(err)

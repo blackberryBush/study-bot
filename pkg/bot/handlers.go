@@ -151,7 +151,7 @@ func (b *Bot) handlePoll(message *tgbotapi.Poll, chatID int) {
 func (b *Bot) handlePollAnswer(ans *tgbotapi.PollAnswer, chatID int) {
 	if b.oprosRun != -1 {
 		// Проверить время
-		check := users.GetTaskByPoll(b.DB, ans.PollID, chatID)
+		check := users.GetTask(b.DB, ans.PollID, chatID)
 		if check <= 0 {
 			return
 		}
@@ -186,6 +186,7 @@ func (b *Bot) getResult(chatID int) {
 	}
 	b.oprosRun = -1
 	b.stat = 0
+	users.ClearUser(b.DB, chatID)
 }
 
 func (b *Bot) handleUnknown() error {
