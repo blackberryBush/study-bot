@@ -79,7 +79,7 @@ func CsvToSQLite(filename string, db *sql.DB) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	query := "CREATE TABLE tasks (" +
+	_, err = db.Exec("CREATE TABLE tasks (" +
 		"chapter	INTEGER NOT NULL," +
 		"ID	INTEGER PRIMARY KEY NOT NULL," +
 		"question	TEXT," +
@@ -88,8 +88,7 @@ func CsvToSQLite(filename string, db *sql.DB) {
 		"option3	TEXT," +
 		"option4	TEXT," +
 		"correct	INTEGER NOT NULL," +
-		"picture	INTEGER);"
-	_, err = db.Exec(query)
+		"picture	INTEGER)")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -113,10 +112,8 @@ func CsvToSQLite(filename string, db *sql.DB) {
 			break
 		}
 		if chapter, ID, correct, picture, check := checkTask(data); check {
-			query := "INSERT INTO tasks(chapter, ID, question, option1, option2, option3, option4, correct, picture) values " +
-				fmt.Sprintf("(%d, %d, \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", %d, %d)",
-					chapter, ID, data[2], cutString(data[3]), cutString(data[4]), cutString(data[5]), cutString(data[6]), correct, picture)
-			_, err = db.Exec(query)
+			_, err = db.Exec("INSERT INTO tasks(chapter, ID, question, option1, option2, option3, option4, correct, picture) values (?,?,?,?,?,?,?,?,?)",
+				chapter, ID, data[2], cutString(data[3]), cutString(data[4]), cutString(data[5]), cutString(data[6]), correct, picture)
 			if err != nil {
 				log.Println(err)
 			}
@@ -125,8 +122,7 @@ func CsvToSQLite(filename string, db *sql.DB) {
 }
 
 func GetQuestion(db *sql.DB, number int) Question {
-	queryRow := fmt.Sprintf("SELECT * FROM tasks WHERE ID = %d", number)
-	row := db.QueryRow(queryRow)
+	row := db.QueryRow("SELECT * FROM tasks WHERE ID = $1", number)
 	var chapter, ID, correct, picture int
 	var question, option1, option2, option3, option4 string
 	err := row.Scan(&chapter, &ID, &question, &option1, &option2, &option3, &option4, &correct, &picture)
@@ -137,8 +133,7 @@ func GetQuestion(db *sql.DB, number int) Question {
 }
 
 func CheckQuestion(db *sql.DB, number int, answer int) bool {
-	queryRow := fmt.Sprintf("SELECT correct FROM tasks WHERE ID = %d", number)
-	row := db.QueryRow(queryRow)
+	row := db.QueryRow("SELECT correct FROM tasks WHERE ID = $1", number)
 	if row.Err() != nil {
 		log.Println("invalid question number")
 	}

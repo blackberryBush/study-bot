@@ -21,51 +21,60 @@ const (
 	callbackQuery
 )
 
-func (b *Bot) getUpdateType(update *tgbotapi.Update) (int, int) {
+func (b *Bot) getUpdateType(update *tgbotapi.Update) (int, int, users.User, error) {
 	// Закрыть дыру с неизвестными видами содержимого!!!!!
 
 	/*if update.Poll != nil {
 		return updatePoll, 0
 	}*/
 	if update.PollAnswer != nil {
-		return updatePollAnswer, int(update.PollAnswer.User.ID)
+		chatID := int(update.PollAnswer.User.ID)
+		user, err := users.GetUser(b.DB, chatID)
+		return updatePollAnswer, chatID, user, err
 	}
 	if update.Message != nil {
 		chatID := int(update.Message.From.ID)
+		user, err := users.GetUser(b.DB, chatID)
 		if update.Message.IsCommand() {
-			return messageCommand, chatID
+			return messageCommand, chatID, user, err
 		}
-		if b.regime && update.Message.Text == "Нет" {
-			return messageRegimeNo, chatID
+		if user.Regime == 1 && update.Message.Text == "Нет" {
+			return messageRegimeNo, chatID, user, err
 		}
-		if b.regime && update.Message.Text == "Да" {
-			return messageRegimeYes, chatID
+		if user.Regime == 1 && update.Message.Text == "Да" {
+			return messageRegimeYes, chatID, user, err
 		}
 		if update.Message.Text == "" && update.Message.Sticker != nil {
-			return messageSticker, chatID
+			return messageSticker, chatID, user, err
 		}
 		if update.Message.Text != "" {
-			return messageText, chatID
+			return messageText, chatID, user, err
 		}
-		return messageUndefined, chatID
+		return messageUndefined, chatID, user, err
 	}
 	if update.CallbackQuery != nil {
-		return callbackQuery, int(update.CallbackQuery.From.ID)
+		chatID := int(update.CallbackQuery.From.ID)
+		user, err := users.GetUser(b.DB, chatID)
+		return callbackQuery, chatID, user, err
 	}
-	return messageUndefined, 0
+	return messageUndefined, 0, users.User{}, nil
 }
 
 func (b *Bot) handleUpdate(update *tgbotapi.Update) {
-	updateType, chatID := b.getUpdateType(update)
-	if b.regime && updateType != messageRegimeNo && updateType != messageRegimeYes {
+	updateType, chatID, currentUser, err := b.getUpdateType(update)
+	if err != nil {
+		currentUser = *users.NewUser(chatID)
+		users.InsertUser(b.DB, currentUser)
+	}
+	if currentUser.Regime == 1 && updateType != messageRegimeNo && updateType != messageRegimeYes {
 		if updateType != updatePollAnswer {
-			b.regime = false
-			b.oprosRun = -1
-			b.stat = 0
+			currentUser.Regime = 0
+			currentUser.PollRun = -1
+			currentUser.Corrects = 0
 			b.PullText("Счёл это за отказ...", chatID, 0, tgbotapi.ReplyKeyboardRemove{RemoveKeyboard: true})
 			return
 		} else {
-			b.regime = false
+			currentUser.Regime = 0
 			b.PullText("Счёл это за продолжение...", chatID, 0, tgbotapi.ReplyKeyboardRemove{RemoveKeyboard: true})
 		}
 	}
@@ -73,45 +82,47 @@ func (b *Bot) handleUpdate(update *tgbotapi.Update) {
 	/*case updatePoll:
 	b.handlePoll(update.Poll, chatID)*/
 	case updatePollAnswer:
-		b.handlePollAnswer(update.PollAnswer, chatID)
+		b.handlePollAnswer(update.PollAnswer, &currentUser)
 	case messageCommand:
-		b.handleCommand(update.Message, chatID)
+		b.handleCommand(update.Message, &currentUser)
 	case messageSticker:
-		b.handleSticker(update.Message, chatID)
+		b.handleSticker(update.Message, &currentUser)
 	case messageText:
-		b.handleText(update.Message, chatID)
+		b.handleText(update.Message, &currentUser)
 	case messageRegimeNo:
-		b.handleRegimeNo(update.Message, chatID)
+		b.handleRegimeNo(update.Message, &currentUser)
 	case messageRegimeYes:
-		b.handleRegimeYes(update.Message, chatID)
+		b.handleRegimeYes(update.Message, &currentUser)
 	case callbackQuery:
 	default:
 		b.handleUnknown()
 	}
+	users.UpdateUser(b.DB, currentUser)
 }
 
-func (b *Bot) handleCommand(message *tgbotapi.Message, chatID int) error {
+func (b *Bot) handleCommand(message *tgbotapi.Message, user *users.User) error {
+	chatID := user.ID
 	switch message.Command() {
 	case "start":
-		b.oprosRun = -1
-		b.stat = 0
+		user.PollRun = -1
+		user.Corrects = 0
 	case "test":
-		b.oprosRun = 0
-		questionID := b.oprosRun + 1 // номер вопроса
-		task := task.GetQuestion(b.DB, questionID)
-		if task.Picture > 0 {
-			b.PullPicture(fmt.Sprintf("pics\\%d.png", task.Picture), chatID, 0)
+		user.PollRun = 0
+		questionID := user.PollRun + 1 // номер вопроса
+		currentTask := task.GetQuestion(b.DB, questionID)
+		if currentTask.Picture > 0 {
+			b.PullPicture(fmt.Sprintf("pics\\%d.png", currentTask.Picture), chatID, 0)
 		}
-		b.PullPoll(questionID, task.Problem, chatID, 0, false, task.Variants...)
+		b.PullPoll(questionID, currentTask.Problem, chatID, 0, false, currentTask.Variants...)
 	case "getstats":
-		if b.oprosRun < 10 {
+		if user.PollRun < 10 {
 			keyboardDefault := tgbotapi.NewKeyboardButtonRow(
 				tgbotapi.NewKeyboardButton(`Да`),
 				tgbotapi.NewKeyboardButton(`Нет`))
-			b.regime = true
+			user.Regime = 1
 			b.PullText("Недостаточно информации для оценки уровня знаний. Продолжить опрос?", chatID, 0, keyboardDefault)
 		} else {
-			b.getResult(chatID)
+			b.getResult(user)
 		}
 	default:
 		b.handleUnknown()
@@ -119,24 +130,28 @@ func (b *Bot) handleCommand(message *tgbotapi.Message, chatID int) error {
 	return nil
 }
 
-func (b *Bot) handleSticker(message *tgbotapi.Message, chatID int) error {
+func (b *Bot) handleSticker(message *tgbotapi.Message, user *users.User) error {
+	chatID := user.ID
 	b.PullSticker(message.Sticker.FileID, chatID, false, 0)
 	return nil
 }
 
-func (b *Bot) handleRegimeNo(message *tgbotapi.Message, chatID int) {
-	b.regime = false
-	b.oprosRun = -1
-	b.stat = 0
+func (b *Bot) handleRegimeNo(message *tgbotapi.Message, user *users.User) {
+	chatID := user.ID
+	user.Regime = 1
+	user.PollRun = -1
+	user.Corrects = 0
 	b.PullText("Тестирование остановлено, результат не сохранен. ", chatID, 0, tgbotapi.ReplyKeyboardRemove{RemoveKeyboard: true})
 }
 
-func (b *Bot) handleRegimeYes(message *tgbotapi.Message, chatID int) {
-	b.regime = false
+func (b *Bot) handleRegimeYes(message *tgbotapi.Message, user *users.User) {
+	chatID := user.ID
+	user.Regime = 1
 	b.PullText("Тестирование продолжается... ", chatID, 0, tgbotapi.ReplyKeyboardRemove{RemoveKeyboard: true})
 }
 
-func (b *Bot) handleText(message *tgbotapi.Message, chatID int) {
+func (b *Bot) handleText(message *tgbotapi.Message, user *users.User) {
+	chatID := user.ID
 	b.PullText(message.Text, chatID, message.MessageID)
 }
 
@@ -148,44 +163,48 @@ func (b *Bot) handlePoll(message *tgbotapi.Poll, chatID int) {
 	b.PullPoll(a.Problem, chatID, 0, false, a.Variants...)
 }*/
 
-func (b *Bot) handlePollAnswer(ans *tgbotapi.PollAnswer, chatID int) {
-	if b.oprosRun != -1 {
+func (b *Bot) handlePollAnswer(ans *tgbotapi.PollAnswer, user *users.User) error {
+	chatID := user.ID
+	if user.PollRun != -1 {
 		// Проверить время
 		check := users.GetTask(b.DB, ans.PollID, chatID)
 		if check <= 0 {
-			return
+			return fmt.Errorf("check error")
 		}
 		if len(ans.OptionIDs) == 1 {
 			if task.CheckQuestion(b.DB, check, ans.OptionIDs[0]+1) {
-				b.stat++
+				user.Corrects++
 			}
 		}
-		b.iterateTest(chatID)
+		b.iterateTest(user)
 	}
+	return nil
 }
 
-func (b *Bot) iterateTest(chatID int) {
-	if b.oprosRun < 30 {
-		b.oprosRun++
+func (b *Bot) iterateTest(user *users.User) {
+	chatID := user.ID
+	if user.PollRun < 30 {
+		user.PollRun++
 		// Получить из бд нужный вопрос
-		task := task.GetQuestion(b.DB, b.oprosRun+1)
-		if task.Picture > 0 {
-			b.PullPicture(fmt.Sprintf("pics\\%d.png", task.Picture), chatID, 0)
+		currentTask := task.GetQuestion(b.DB, user.PollRun+1)
+		if currentTask.Picture > 0 {
+			b.PullPicture(fmt.Sprintf("pics\\%d.png", currentTask.Picture), chatID, 0)
 		}
-		b.PullPoll(task.Number, task.Problem, chatID, 0, false, task.Variants...)
+		b.PullPoll(currentTask.Number, currentTask.Problem, chatID, 0, false, currentTask.Variants...)
 	} else {
-		b.getResult(chatID)
+		b.getResult(user)
 	}
 }
 
-func (b *Bot) getResult(chatID int) {
-	if b.oprosRun > 0 {
-		b.PullText(fmt.Sprintf("Статистика: %v%%\nОтветов: %v\nПравильных: %v", b.stat*100/b.oprosRun, b.oprosRun, b.stat), chatID, 0)
+func (b *Bot) getResult(user *users.User) {
+	chatID := user.ID
+	if user.PollRun > 0 {
+		b.PullText(fmt.Sprintf("Статистика: %v%%\nОтветов: %v\nПравильных: %v", user.Corrects*100/user.PollRun, user.PollRun, user.Corrects), chatID, 0)
 	} else {
 		b.PullText("Статистика: Нет информации о пройденных тестах.", chatID, 0)
 	}
-	b.oprosRun = -1
-	b.stat = 0
+	user.PollRun = -1
+	user.Corrects = 0
 	users.ClearUser(b.DB, chatID)
 }
 
@@ -194,13 +213,14 @@ func (b *Bot) handleUnknown() error {
 }
 
 // КАКАЯ-ТО ШЛЯПА НЕ ТРОГАТЬ (вызывает колбеки)
-func (b *Bot) handleCallbackQuery(callback *tgbotapi.CallbackQuery, chatID int) error {
+func (b *Bot) handleCallbackQuery(callback *tgbotapi.CallbackQuery, user users.User) error {
+	chatID := user.ID
 	switch callback.Data {
 	case "testContinueNo":
 		b.PullText("Советую попробовать еще раз...", chatID, 0)
 	case "testContinueYes":
 		// Получить из бд нужный вопрос
-		a := task.GetQuestion(b.DB, b.oprosRun)
+		a := task.GetQuestion(b.DB, user.PollRun)
 		//a = task.GenerateRandomQuestion(b.oprosRun/3, b.oprosRun%3)
 		log.Println(a)
 		b.PullPoll(a.Number, a.Problem, chatID, 0, false, a.Variants...)

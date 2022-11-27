@@ -10,10 +10,6 @@ import (
 type Bot struct {
 	bot       *tgbotapi.BotAPI
 	sendQueue *KitToSend
-	oprosRun  int
-	stat      int
-	regime    bool
-	worst     []int
 	DB        *sql.DB
 }
 
@@ -21,7 +17,6 @@ func NewBot(bot *tgbotapi.BotAPI, dbTasks *sql.DB) *Bot {
 	return &Bot{
 		bot:       bot,
 		sendQueue: NewKitToSend(),
-		oprosRun:  -1,
 		DB:        dbTasks,
 	}
 }
