@@ -72,6 +72,7 @@ func (b *Bot) handleUpdate(update *tgbotapi.Update) {
 			currentUser.PollRun = -1
 			currentUser.Corrects = 0
 			b.PullText("Счёл это за отказ...", chatID, 0, tgbotapi.ReplyKeyboardRemove{RemoveKeyboard: true})
+			users.UpdateUser(b.DB, currentUser)
 			return
 		} else {
 			currentUser.Regime = 0
@@ -104,18 +105,28 @@ func (b *Bot) handleCommand(message *tgbotapi.Message, user *users.User) error {
 	chatID := user.ID
 	switch message.Command() {
 	case "start":
+		users.ClearUser(b.DB, chatID)
 		user.PollRun = -1
 		user.Corrects = 0
 	case "test":
+		users.ClearUser(b.DB, chatID)
 		user.PollRun = 0
 		questionID := user.PollRun + 1 // номер вопроса
-		currentTask := task.GetQuestion(b.DB, questionID)
+		currentTask, err := task.GetQuestion(b.DB, user.PollRun+1)
+		if err != nil {
+			b.PullText("Произошла ошибка при тестировании...", chatID, 0)
+			b.getResult(user)
+			return err
+		}
 		if currentTask.Picture > 0 {
 			b.PullPicture(fmt.Sprintf("pics\\%d.png", currentTask.Picture), chatID, 0)
 		}
 		b.PullPoll(questionID, currentTask.Problem, chatID, 0, false, currentTask.Variants...)
 	case "getstats":
-		if user.PollRun < 10 {
+		if user.PollRun == -1 {
+			users.GetLastStats(b.DB, user)
+			b.getResult(user)
+		} else if user.PollRun < 10 {
 			keyboardDefault := tgbotapi.NewKeyboardButtonRow(
 				tgbotapi.NewKeyboardButton(`Да`),
 				tgbotapi.NewKeyboardButton(`Нет`))
@@ -138,15 +149,16 @@ func (b *Bot) handleSticker(message *tgbotapi.Message, user *users.User) error {
 
 func (b *Bot) handleRegimeNo(message *tgbotapi.Message, user *users.User) {
 	chatID := user.ID
-	user.Regime = 1
+	user.Regime = 0
 	user.PollRun = -1
 	user.Corrects = 0
+	users.ClearUser(b.DB, chatID)
 	b.PullText("Тестирование остановлено, результат не сохранен. ", chatID, 0, tgbotapi.ReplyKeyboardRemove{RemoveKeyboard: true})
 }
 
 func (b *Bot) handleRegimeYes(message *tgbotapi.Message, user *users.User) {
 	chatID := user.ID
-	user.Regime = 1
+	user.Regime = 0
 	b.PullText("Тестирование продолжается... ", chatID, 0, tgbotapi.ReplyKeyboardRemove{RemoveKeyboard: true})
 }
 
@@ -167,13 +179,17 @@ func (b *Bot) handlePollAnswer(ans *tgbotapi.PollAnswer, user *users.User) error
 	chatID := user.ID
 	if user.PollRun != -1 {
 		// Проверить время
-		check := users.GetTask(b.DB, ans.PollID, chatID)
-		if check <= 0 {
+		checkTask, checkChapter := users.GetTask(b.DB, ans.PollID, chatID)
+		if checkTask <= 0 {
 			return fmt.Errorf("check error")
 		}
 		if len(ans.OptionIDs) == 1 {
-			if task.CheckQuestion(b.DB, check, ans.OptionIDs[0]+1) {
+			users.UpdateAnswer(b.DB, chatID, ans.PollID, ans.OptionIDs[0]+1)
+			user.Chapters[checkChapter]++
+			if task.CheckQuestion(b.DB, checkTask, ans.OptionIDs[0]+1) {
 				user.Corrects++
+			} else {
+				user.Worst[checkChapter]++
 			}
 		}
 		b.iterateTest(user)
@@ -186,7 +202,12 @@ func (b *Bot) iterateTest(user *users.User) {
 	if user.PollRun < 30 {
 		user.PollRun++
 		// Получить из бд нужный вопрос
-		currentTask := task.GetQuestion(b.DB, user.PollRun+1)
+		currentTask, err := task.GetQuestion(b.DB, user.PollRun+1)
+		if err != nil {
+			b.PullText("Произошла ошибка при тестировании...", chatID, 0)
+			b.getResult(user)
+			return
+		}
 		if currentTask.Picture > 0 {
 			b.PullPicture(fmt.Sprintf("pics\\%d.png", currentTask.Picture), chatID, 0)
 		}
@@ -199,13 +220,17 @@ func (b *Bot) iterateTest(user *users.User) {
 func (b *Bot) getResult(user *users.User) {
 	chatID := user.ID
 	if user.PollRun > 0 {
-		b.PullText(fmt.Sprintf("Статистика: %v%%\nОтветов: %v\nПравильных: %v", user.Corrects*100/user.PollRun, user.PollRun, user.Corrects), chatID, 0)
+		s := "\n\nДоля неправильных ответов по главам:"
+		for i, v := range user.Chapters {
+			s += fmt.Sprintf("\nГлава %d: %d%%", i, user.Worst[i]*100/v)
+		}
+		b.PullText(fmt.Sprintf("Статистика: %v%%\nОтветов: %v\nПравильных: %v%s",
+			user.Corrects*100/user.PollRun, user.PollRun, user.Corrects, s), chatID, 0)
 	} else {
 		b.PullText("Статистика: Нет информации о пройденных тестах.", chatID, 0)
 	}
 	user.PollRun = -1
 	user.Corrects = 0
-	users.ClearUser(b.DB, chatID)
 }
 
 func (b *Bot) handleUnknown() error {
@@ -213,15 +238,19 @@ func (b *Bot) handleUnknown() error {
 }
 
 // КАКАЯ-ТО ШЛЯПА НЕ ТРОГАТЬ (вызывает колбеки)
-func (b *Bot) handleCallbackQuery(callback *tgbotapi.CallbackQuery, user users.User) error {
+func (b *Bot) handleCallbackQuery(callback *tgbotapi.CallbackQuery, user *users.User) error {
 	chatID := user.ID
 	switch callback.Data {
 	case "testContinueNo":
 		b.PullText("Советую попробовать еще раз...", chatID, 0)
 	case "testContinueYes":
 		// Получить из бд нужный вопрос
-		a := task.GetQuestion(b.DB, user.PollRun)
-		//a = task.GenerateRandomQuestion(b.oprosRun/3, b.oprosRun%3)
+		a, err := task.GetQuestion(b.DB, user.PollRun+1)
+		if err != nil {
+			b.PullText("Произошла ошибка при тестировании...", chatID, 0)
+			b.getResult(user)
+			return err
+		}
 		log.Println(a)
 		b.PullPoll(a.Number, a.Problem, chatID, 0, false, a.Variants...)
 	default:

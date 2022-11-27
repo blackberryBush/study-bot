@@ -121,15 +121,15 @@ func CsvToSQLite(filename string, db *sql.DB) {
 	}
 }
 
-func GetQuestion(db *sql.DB, number int) Question {
+func GetQuestion(db *sql.DB, number int) (Question, error) {
 	row := db.QueryRow("SELECT * FROM tasks WHERE ID = $1", number)
 	var chapter, ID, correct, picture int
 	var question, option1, option2, option3, option4 string
 	err := row.Scan(&chapter, &ID, &question, &option1, &option2, &option3, &option4, &correct, &picture)
-	if err != nil {
-		log.Println("invalid question number")
+	if err != nil || correct < 1 {
+		return Question{}, fmt.Errorf("invalid question number")
 	}
-	return *NewQuestion(chapter, ID, question, correct, picture, option1, option2, option3, option4)
+	return *NewQuestion(chapter, ID, question, correct, picture, option1, option2, option3, option4), nil
 }
 
 func CheckQuestion(db *sql.DB, number int, answer int) bool {
