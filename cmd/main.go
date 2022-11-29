@@ -6,7 +6,6 @@ import (
 	"github.com/spf13/viper"
 	"log"
 	"study-bot/pkg/bot"
-	"study-bot/pkg/task"
 	"study-bot/pkg/users"
 )
 
@@ -29,7 +28,8 @@ func main() {
 		log.Fatal(err)
 	}
 	b := bot.NewBot(botAPI, db)
-	task.CsvToSQLite("tasks.csv", b.DB)
+	users.CsvToSQLite("tasks.csv", b.DB)
+	b.Chapters = users.CountChapters(b.DB)
 	users.CreateUsers(b.DB)
 	users.CreateNotes(b.DB)
 	//

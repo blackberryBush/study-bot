@@ -3,21 +3,32 @@ package bot
 import (
 	"database/sql"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/spf13/viper"
 	"log"
 	"time"
 )
 
 type Bot struct {
-	bot       *tgbotapi.BotAPI
-	sendQueue *KitToSend
-	DB        *sql.DB
+	bot        *tgbotapi.BotAPI
+	sendQueue  *KitToSend
+	DB         *sql.DB
+	Chapters   int
+	iterations int
 }
 
 func NewBot(bot *tgbotapi.BotAPI, dbTasks *sql.DB) *Bot {
+	viper.SetConfigName("token")
+	viper.AddConfigPath(".")
+	iterations := 10
+	if err := viper.ReadInConfig(); err == nil {
+		iterations = viper.GetInt("options.iterations")
+	}
 	return &Bot{
-		bot:       bot,
-		sendQueue: NewKitToSend(),
-		DB:        dbTasks,
+		bot:        bot,
+		sendQueue:  NewKitToSend(),
+		DB:         dbTasks,
+		Chapters:   1,
+		iterations: iterations,
 	}
 }
 

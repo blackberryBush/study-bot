@@ -2,9 +2,7 @@ package users
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
-	"study-bot/pkg/task"
 )
 
 type Note struct {
@@ -43,7 +41,6 @@ func InputNote(db *sql.DB, note Note) {
 }
 
 func UpdateAnswer(db *sql.DB, userID int, pollID string, answer int) {
-	fmt.Println(answer, userID)
 	_, err := db.Exec("UPDATE notes SET answer=$1 WHERE userID=$2 AND pollID=$3", answer, userID, pollID)
 	if err != nil {
 		log.Println(err)
@@ -60,22 +57,11 @@ func GetTask(db *sql.DB, pollID string, userID int) (int, int) {
 	if err != nil {
 		return -1, -1
 	}
-	t, err := task.GetQuestion(db, taskNote.TaskID)
+	t, err := GetQuestion(db, taskNote.TaskID)
 	if err != nil {
 		return -1, -1
 	}
 	return taskNote.TaskID, t.Category
-}
-
-// для генерации вопросов
-// нуждается в корректировке
-
-func HasTask(db *sql.DB, userID int, taskID int) bool {
-	taskNote := db.QueryRow("SELECT * FROM notes WHERE userID = $1 AND taskID = $2", userID, taskID)
-	if taskNote.Err() == nil {
-		return true
-	}
-	return false
 }
 
 func ClearUser(db *sql.DB, userID int) {
@@ -101,13 +87,13 @@ func GetLastStats(db *sql.DB, user *User) {
 			continue
 		}
 		user.PollRun++
-		t, err := task.GetQuestion(db, taskID)
+		t, err := GetQuestion(db, taskID)
 		if err != nil {
 			continue
 		}
 		chapter := t.Category
 		user.Chapters[chapter]++
-		if task.CheckQuestion(db, taskID, answer) {
+		if CheckQuestion(db, taskID, answer) {
 			user.Corrects++
 		} else {
 			user.Worst[chapter]++

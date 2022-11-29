@@ -4,8 +4,7 @@ import (
 	"errors"
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"log"
-	"study-bot/pkg/task"
+	"sort"
 	"study-bot/pkg/users"
 )
 
@@ -111,8 +110,13 @@ func (b *Bot) handleCommand(message *tgbotapi.Message, user *users.User) error {
 	case "test":
 		users.ClearUser(b.DB, chatID)
 		user.PollRun = 0
-		questionID := user.PollRun + 1 // номер вопроса
-		currentTask, err := task.GetQuestion(b.DB, user.PollRun+1)
+		user.Corrects = 0
+		for i := range user.Worst {
+			user.Worst[i] = 0
+			user.Chapters[i] = 0
+		}
+		questionID := users.GetRandomQuestionNumber(b.DB, user.PollRun, b.Chapters, user.ID)
+		currentTask, err := users.GetQuestion(b.DB, questionID)
 		if err != nil {
 			b.PullText("Произошла ошибка при тестировании...", chatID, 0)
 			b.getResult(user)
@@ -151,7 +155,6 @@ func (b *Bot) handleRegimeNo(message *tgbotapi.Message, user *users.User) {
 	chatID := user.ID
 	user.Regime = 0
 	user.PollRun = -1
-	user.Corrects = 0
 	users.ClearUser(b.DB, chatID)
 	b.PullText("Тестирование остановлено, результат не сохранен. ", chatID, 0, tgbotapi.ReplyKeyboardRemove{RemoveKeyboard: true})
 }
@@ -186,7 +189,7 @@ func (b *Bot) handlePollAnswer(ans *tgbotapi.PollAnswer, user *users.User) error
 		if len(ans.OptionIDs) == 1 {
 			users.UpdateAnswer(b.DB, chatID, ans.PollID, ans.OptionIDs[0]+1)
 			user.Chapters[checkChapter]++
-			if task.CheckQuestion(b.DB, checkTask, ans.OptionIDs[0]+1) {
+			if users.CheckQuestion(b.DB, checkTask, ans.OptionIDs[0]+1) {
 				user.Corrects++
 			} else {
 				user.Worst[checkChapter]++
@@ -201,8 +204,8 @@ func (b *Bot) iterateTest(user *users.User) {
 	chatID := user.ID
 	if user.PollRun < 30 {
 		user.PollRun++
-		// Получить из бд нужный вопрос
-		currentTask, err := task.GetQuestion(b.DB, user.PollRun+1)
+		questionID := users.GetRandomQuestionNumber(b.DB, user.PollRun, b.Chapters, user.ID)
+		currentTask, err := users.GetQuestion(b.DB, questionID)
 		if err != nil {
 			b.PullText("Произошла ошибка при тестировании...", chatID, 0)
 			b.getResult(user)
@@ -217,20 +220,31 @@ func (b *Bot) iterateTest(user *users.User) {
 	}
 }
 
+func outputSortedByKey(user *users.User) string {
+	keys := make([]int, 0, len(user.Chapters))
+	for k := range user.Chapters {
+		keys = append(keys, k)
+	}
+	sort.Ints(keys)
+	s := "\n\nДоля неправильных ответов по главам:"
+	for _, k := range keys {
+		if user.Chapters[k] != 0 {
+			s += fmt.Sprintf("\nГлава %d: %d%%", k, user.Worst[k]*100/user.Chapters[k])
+		}
+	}
+	return s
+}
+
 func (b *Bot) getResult(user *users.User) {
 	chatID := user.ID
 	if user.PollRun > 0 {
-		s := "\n\nДоля неправильных ответов по главам:"
-		for i, v := range user.Chapters {
-			s += fmt.Sprintf("\nГлава %d: %d%%", i, user.Worst[i]*100/v)
-		}
+		s := outputSortedByKey(user)
 		b.PullText(fmt.Sprintf("Статистика: %v%%\nОтветов: %v\nПравильных: %v%s",
 			user.Corrects*100/user.PollRun, user.PollRun, user.Corrects, s), chatID, 0)
 	} else {
 		b.PullText("Статистика: Нет информации о пройденных тестах.", chatID, 0)
 	}
 	user.PollRun = -1
-	user.Corrects = 0
 }
 
 func (b *Bot) handleUnknown() error {
@@ -238,6 +252,7 @@ func (b *Bot) handleUnknown() error {
 }
 
 // КАКАЯ-ТО ШЛЯПА НЕ ТРОГАТЬ (вызывает колбеки)
+/*
 func (b *Bot) handleCallbackQuery(callback *tgbotapi.CallbackQuery, user *users.User) error {
 	chatID := user.ID
 	switch callback.Data {
@@ -258,3 +273,4 @@ func (b *Bot) handleCallbackQuery(callback *tgbotapi.CallbackQuery, user *users.
 	}
 	return nil
 }
+*/

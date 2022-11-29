@@ -1,4 +1,4 @@
-package task
+package users
 
 import (
 	"crypto/rand"
@@ -148,6 +148,37 @@ func CheckQuestion(db *sql.DB, number int, answer int) bool {
 	return true
 }
 
+func CountChapters(db *sql.DB) int {
+	row := db.QueryRow("SELECT COUNT(DISTINCT chapter) FROM tasks")
+	if row.Err() != nil || row == nil {
+		return -1
+	}
+	count := 0
+	err := row.Scan(&count)
+	if err != nil {
+		return -1
+	}
+	return count
+}
+
+/*func GetChapters(db *sql.DB) []int {
+	rows, err := db.Query("SELECT DISTINCT chapter FROM tasks ORDER BY chapter")
+	if err != nil || rows == nil {
+		return nil
+	}
+	var slice []int
+	for rows.Next() {
+		var chapter int
+		err := rows.Scan(&chapter)
+		if err != nil || chapter == 0 {
+			continue
+		}
+		slice = append(slice, chapter)
+	}
+	return slice
+}*/
+
+/*
 func GenerateRandomQuestion(category int, number int) Question {
 	length, _ := rand.Int(rand.Reader, big.NewInt(8))
 	length.Add(length, big.NewInt(2))
@@ -177,4 +208,53 @@ func generatePassword(length int) string {
 		res[i] = kit[r.Int64()]
 	}
 	return string(res)
+}
+*/
+
+func GetRandomInt(max int) int {
+	r, err := rand.Int(rand.Reader, big.NewInt(int64(max)))
+	if err != nil {
+		return -1
+	}
+	return int(r.Int64())
+}
+
+func GetRandomQuestionNumber(db *sql.DB, number int, chapters int, userID int) int {
+	currentChapter := number%chapters + 1
+	rows, err := db.Query("SELECT tasks.ID FROM tasks, notes WHERE tasks.chapter = $1 AND NOT (tasks.ID = notes.taskID)",
+		currentChapter)
+
+	f := func(rows *sql.Rows) []int {
+		var questionsList []int
+		for rows.Next() {
+			var chapter int
+			err := rows.Scan(&chapter)
+			if err != nil || chapter == 0 {
+				continue
+			}
+			questionsList = append(questionsList, chapter)
+		}
+		return questionsList
+	}
+	if err != nil {
+		return -1
+	}
+	qlist := f(rows)
+	//fmt.Println(qlist)
+	if len(qlist) == 0 {
+		fmt.Println("???")
+		rows, err = db.Query("SELECT ID FROM tasks WHERE chapter = $1", currentChapter)
+		if err != nil || rows == nil {
+			return -1
+		}
+		qlist = f(rows)
+	}
+
+	fmt.Println(qlist)
+	count := len(qlist)
+	if count == 0 {
+		return -1
+	}
+
+	return qlist[GetRandomInt(count)]
 }
