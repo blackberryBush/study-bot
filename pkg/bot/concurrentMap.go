@@ -7,14 +7,23 @@ import (
 
 type Chattable struct {
 	data   tgbotapi.Chattable
-	option int
+	option AnswerOptions
+}
+
+type AnswerOptions struct {
+	taskID  int
+	correct int
 }
 
 func NewChattable(data tgbotapi.Chattable, options ...int) *Chattable {
-	if len(options) > 0 {
-		return &Chattable{data: data, option: options[0]}
+	switch {
+	case len(options) == 1:
+		return &Chattable{data: data, option: AnswerOptions{0, options[0]}}
+	case len(options) >= 2:
+		return &Chattable{data: data, option: AnswerOptions{options[0], options[1]}}
+	default:
+		return &Chattable{data: data}
 	}
-	return &Chattable{data: data}
 }
 
 type ItemToSend struct {

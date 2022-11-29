@@ -6,18 +6,20 @@ import (
 )
 
 type Note struct {
-	UserID int
-	PollID string
-	TaskID int
-	Answer int
+	UserID  int
+	PollID  string
+	TaskID  int
+	Answer  int
+	Correct int
 }
 
-func NewNote(userID int, pollID string, taskID int, answer int) *Note {
+func NewNote(userID int, pollID string, taskID int, answer int, correct int) *Note {
 	return &Note{
-		UserID: userID,
-		PollID: pollID,
-		TaskID: taskID,
-		Answer: answer,
+		UserID:  userID,
+		PollID:  pollID,
+		TaskID:  taskID,
+		Answer:  answer,
+		Correct: correct,
 	}
 }
 
@@ -26,15 +28,16 @@ func CreateNotes(db *sql.DB) {
 		"userID		INTEGER," +
 		"pollID		TEXT PRIMARY KEY," +
 		"taskID 	INTEGER," +
-		"answer		INTEGER)")
+		"answer		INTEGER," +
+		"correct 	INTEGER)")
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
 func InputNote(db *sql.DB, note Note) {
-	_, err := db.Exec("INSERT INTO notes(userID, pollID, taskID, answer) VALUES (?,?,?,?)",
-		note.UserID, note.PollID, note.TaskID, note.Answer)
+	_, err := db.Exec("INSERT INTO notes(userID, pollID, taskID, answer, correct) VALUES (?,?,?,?,?)",
+		note.UserID, note.PollID, note.TaskID, note.Answer, note.Correct)
 	if err != nil {
 		log.Println(err)
 	}
@@ -47,21 +50,21 @@ func UpdateAnswer(db *sql.DB, userID int, pollID string, answer int) {
 	}
 }
 
-func GetTask(db *sql.DB, pollID string, userID int) (int, int) {
+func GetTask(db *sql.DB, pollID string, userID int) (int, int, int) {
 	taskRow := db.QueryRow("SELECT * FROM notes WHERE pollID = $1 AND userID = $2", pollID, userID)
 	if taskRow.Err() != nil {
-		return -1, -1
+		return -1, -1, -1
 	}
 	var taskNote Note
-	err := taskRow.Scan(&taskNote.UserID, &taskNote.PollID, &taskNote.TaskID, &taskNote.Answer)
+	err := taskRow.Scan(&taskNote.UserID, &taskNote.PollID, &taskNote.TaskID, &taskNote.Answer, &taskNote.Correct)
 	if err != nil {
-		return -1, -1
+		return -1, -1, -1
 	}
 	t, err := GetQuestion(db, taskNote.TaskID)
 	if err != nil {
-		return -1, -1
+		return -1, -1, -1
 	}
-	return taskNote.TaskID, t.Category
+	return taskNote.TaskID, t.Category, taskNote.Correct
 }
 
 func ClearUser(db *sql.DB, userID int) {
@@ -72,7 +75,7 @@ func ClearUser(db *sql.DB, userID int) {
 }
 
 func GetLastStats(db *sql.DB, user *User) {
-	rows, err := db.Query("SELECT taskID, answer FROM notes WHERE userID = $1", user.ID)
+	rows, err := db.Query("SELECT taskID, answer, correct FROM notes WHERE userID = $1", user.ID)
 	if err != nil || rows == nil {
 		return
 	}
@@ -81,8 +84,8 @@ func GetLastStats(db *sql.DB, user *User) {
 	user.Worst = make(map[int]int)
 	user.Chapters = make(map[int]int)
 	for rows.Next() {
-		var taskID, answer int
-		err := rows.Scan(&taskID, &answer)
+		var taskID, answer, correct int
+		err := rows.Scan(&taskID, &answer, &correct)
 		if err != nil || answer == 0 {
 			continue
 		}
@@ -93,7 +96,7 @@ func GetLastStats(db *sql.DB, user *User) {
 		}
 		chapter := t.Category
 		user.Chapters[chapter]++
-		if CheckQuestion(db, taskID, answer) {
+		if correct == answer {
 			user.Corrects++
 		} else {
 			user.Worst[chapter]++

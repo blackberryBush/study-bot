@@ -132,6 +132,7 @@ func GetQuestion(db *sql.DB, number int) (Question, error) {
 	return *NewQuestion(chapter, ID, question, correct, picture, option1, option2, option3, option4), nil
 }
 
+/*
 func CheckQuestion(db *sql.DB, number int, answer int) bool {
 	row := db.QueryRow("SELECT correct FROM tasks WHERE ID = $1", number)
 	if row.Err() != nil {
@@ -146,7 +147,7 @@ func CheckQuestion(db *sql.DB, number int, answer int) bool {
 		return false
 	}
 	return true
-}
+}*/
 
 func CountChapters(db *sql.DB) int {
 	row := db.QueryRow("SELECT COUNT(DISTINCT chapter) FROM tasks")
@@ -221,40 +222,35 @@ func GetRandomInt(max int) int {
 
 func GetRandomQuestionNumber(db *sql.DB, number int, chapters int, userID int) int {
 	currentChapter := number%chapters + 1
-	rows, err := db.Query("SELECT tasks.ID FROM tasks, notes WHERE tasks.chapter = $1 AND NOT (tasks.ID = notes.taskID)",
-		currentChapter)
-
+	rows, err := db.Query("SELECT tasks.ID FROM tasks WHERE tasks.chapter = $1 EXCEPT SELECT notes.taskID FROM notes WHERE notes.userID = $2", currentChapter, userID)
 	f := func(rows *sql.Rows) []int {
-		var questionsList []int
+		var questions []int
 		for rows.Next() {
 			var chapter int
 			err := rows.Scan(&chapter)
 			if err != nil || chapter == 0 {
 				continue
 			}
-			questionsList = append(questionsList, chapter)
+			questions = append(questions, chapter)
 		}
-		return questionsList
+		return questions
 	}
 	if err != nil {
 		return -1
 	}
-	qlist := f(rows)
-	//fmt.Println(qlist)
-	if len(qlist) == 0 {
-		fmt.Println("???")
+	questions := f(rows)
+	if len(questions) == 0 {
 		rows, err = db.Query("SELECT ID FROM tasks WHERE chapter = $1", currentChapter)
 		if err != nil || rows == nil {
 			return -1
 		}
-		qlist = f(rows)
+		questions = f(rows)
 	}
 
-	fmt.Println(qlist)
-	count := len(qlist)
+	count := len(questions)
 	if count == 0 {
 		return -1
 	}
 
-	return qlist[GetRandomInt(count)]
+	return questions[GetRandomInt(count)]
 }

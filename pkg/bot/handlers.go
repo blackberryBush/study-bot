@@ -115,28 +115,19 @@ func (b *Bot) handleCommand(message *tgbotapi.Message, user *users.User) error {
 			user.Worst[i] = 0
 			user.Chapters[i] = 0
 		}
-		questionID := users.GetRandomQuestionNumber(b.DB, user.PollRun, b.Chapters, user.ID)
-		currentTask, err := users.GetQuestion(b.DB, questionID)
-		if err != nil {
-			b.PullText("Произошла ошибка при тестировании...", chatID, 0)
-			b.getResult(user)
-			return err
-		}
-		if currentTask.Picture > 0 {
-			b.PullPicture(fmt.Sprintf("pics\\%d.png", currentTask.Picture), chatID, 0)
-		}
-		b.PullPoll(questionID, currentTask.Problem, chatID, 0, false, currentTask.Variants...)
+		b.iterateTest(user)
 	case "getstats":
 		if user.PollRun == -1 {
 			users.GetLastStats(b.DB, user)
 			b.getResult(user)
-		} else if user.PollRun < 10 {
+		} else if user.PollRun < b.Chapters {
 			keyboardDefault := tgbotapi.NewKeyboardButtonRow(
 				tgbotapi.NewKeyboardButton(`Да`),
 				tgbotapi.NewKeyboardButton(`Нет`))
 			user.Regime = 1
 			b.PullText("Недостаточно информации для оценки уровня знаний. Продолжить опрос?", chatID, 0, keyboardDefault)
 		} else {
+			user.PollRun--
 			b.getResult(user)
 		}
 	default:
@@ -182,14 +173,14 @@ func (b *Bot) handlePollAnswer(ans *tgbotapi.PollAnswer, user *users.User) error
 	chatID := user.ID
 	if user.PollRun != -1 {
 		// Проверить время
-		checkTask, checkChapter := users.GetTask(b.DB, ans.PollID, chatID)
+		checkTask, checkChapter, checkCorrect := users.GetTask(b.DB, ans.PollID, chatID)
 		if checkTask <= 0 {
 			return fmt.Errorf("check error")
 		}
 		if len(ans.OptionIDs) == 1 {
 			users.UpdateAnswer(b.DB, chatID, ans.PollID, ans.OptionIDs[0]+1)
 			user.Chapters[checkChapter]++
-			if users.CheckQuestion(b.DB, checkTask, ans.OptionIDs[0]+1) {
+			if checkCorrect == ans.OptionIDs[0]+1 {
 				user.Corrects++
 			} else {
 				user.Worst[checkChapter]++
@@ -202,7 +193,7 @@ func (b *Bot) handlePollAnswer(ans *tgbotapi.PollAnswer, user *users.User) error
 
 func (b *Bot) iterateTest(user *users.User) {
 	chatID := user.ID
-	if user.PollRun < 30 {
+	if user.PollRun < b.Chapters*b.iterations {
 		user.PollRun++
 		questionID := users.GetRandomQuestionNumber(b.DB, user.PollRun, b.Chapters, user.ID)
 		currentTask, err := users.GetQuestion(b.DB, questionID)
@@ -214,7 +205,7 @@ func (b *Bot) iterateTest(user *users.User) {
 		if currentTask.Picture > 0 {
 			b.PullPicture(fmt.Sprintf("pics\\%d.png", currentTask.Picture), chatID, 0)
 		}
-		b.PullPoll(currentTask.Number, currentTask.Problem, chatID, 0, false, currentTask.Variants...)
+		b.PullPoll(currentTask.Number, currentTask.Problem, chatID, 0, false, currentTask.Correct, currentTask.Variants...)
 	} else {
 		b.getResult(user)
 	}
