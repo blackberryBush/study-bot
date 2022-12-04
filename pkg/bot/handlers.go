@@ -104,11 +104,13 @@ func (b *Bot) handleCommand(message *tgbotapi.Message, user *users.User) error {
 	chatID := user.ID
 	switch message.Command() {
 	case "start":
+		b.TimerStop(user)
 		users.ClearUser(b.DB, chatID)
 		user.PollRun = -1
 		user.Corrects = 0
 	case "test":
 		users.ClearUser(b.DB, chatID)
+		go b.TimerRun(user)
 		user.PollRun = 0
 		user.Corrects = 0
 		for i := range user.Worst {
@@ -147,6 +149,7 @@ func (b *Bot) handleRegimeNo(message *tgbotapi.Message, user *users.User) {
 	user.Regime = 0
 	user.PollRun = -1
 	users.ClearUser(b.DB, chatID)
+	b.TimerStop(user)
 	b.PullText("Тестирование остановлено, результат не сохранен. ", chatID, 0, tgbotapi.ReplyKeyboardRemove{RemoveKeyboard: true})
 }
 
@@ -228,6 +231,7 @@ func outputSortedByKey(user *users.User) string {
 }
 
 func (b *Bot) getResult(user *users.User) {
+	b.TimerStop(user)
 	chatID := user.ID
 	if user.PollRun > 0 {
 		s := outputSortedByKey(user)

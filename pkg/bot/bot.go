@@ -14,10 +14,11 @@ type Bot struct {
 	DB         *sql.DB
 	Chapters   int
 	iterations int
+	timers     map[int]*time.Timer
 }
 
 func NewBot(bot *tgbotapi.BotAPI, dbTasks *sql.DB) *Bot {
-	viper.SetConfigName("token")
+	viper.SetConfigName("options")
 	viper.AddConfigPath(".")
 	iterations := 10
 	if err := viper.ReadInConfig(); err == nil {
@@ -29,6 +30,7 @@ func NewBot(bot *tgbotapi.BotAPI, dbTasks *sql.DB) *Bot {
 		DB:         dbTasks,
 		Chapters:   1,
 		iterations: iterations,
+		timers:     make(map[int]*time.Timer),
 	}
 }
 

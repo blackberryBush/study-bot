@@ -4,6 +4,7 @@ import (
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"log"
+	"strings"
 )
 
 const (
@@ -54,7 +55,8 @@ func PrintReceive(update *tgbotapi.Update, updateType int, chatID int) {
 func PrintSent(c *tgbotapi.Chattable) {
 	switch (*c).(type) {
 	case tgbotapi.MessageConfig:
-		log.Printf("SENT MESSAGE:	[%d] %s", (*c).(tgbotapi.MessageConfig).ChatID, (*c).(tgbotapi.MessageConfig).Text)
+		text := strings.Replace((*c).(tgbotapi.MessageConfig).Text, "\n", " -> ", -1)
+		log.Printf("SENT MESSAGE:	[%d] %s", (*c).(tgbotapi.MessageConfig).ChatID, text)
 	case tgbotapi.SendPollConfig:
 		log.Printf("SENT POLL:		[%d] %s", (*c).(tgbotapi.SendPollConfig).ChatID, (*c).(tgbotapi.SendPollConfig).Question)
 	case tgbotapi.CallbackConfig:

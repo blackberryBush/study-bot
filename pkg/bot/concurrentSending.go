@@ -24,7 +24,7 @@ func (b *Bot) Send(chatID int) (err error) {
 	case tgbotapi.CallbackConfig, tgbotapi.DeleteMessageConfig:
 		_, err = b.bot.Request(data.data)
 	case tgbotapi.SendPollConfig:
-		msg, err := b.bot.Send(data.data)
+		msg, err := b.bot.Send(data.data.(tgbotapi.SendPollConfig))
 		users.InputNote(b.DB, *users.NewNote(chatID, msg.Poll.ID, data.option.taskID, 0, data.option.correct))
 		return err
 	default:
