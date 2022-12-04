@@ -3,6 +3,7 @@ package bot
 import (
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"study-bot/pkg/log"
 	"study-bot/pkg/users"
 )
 
@@ -16,7 +17,7 @@ func (b *Bot) Send(chatID int) (err error) {
 	if item.queue > 5 {
 		data = *NewChattable(tgbotapi.NewMessage(int64(chatID), "Не флуди!"))
 	}
-	PrintSent(&data.data)
+	log.PrintSent(&data.data)
 	switch data.data.(type) {
 	case tgbotapi.MessageConfig, tgbotapi.StickerConfig, tgbotapi.PhotoConfig:
 		_, err = b.bot.Send(data.data)

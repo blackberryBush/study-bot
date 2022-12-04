@@ -3,9 +3,11 @@ package users
 import (
 	"crypto/rand"
 	"database/sql"
+	"encoding/binary"
 	"encoding/csv"
 	"fmt"
 	_ "github.com/mattn/go-sqlite3"
+	rand2 "golang.org/x/exp/rand"
 	"log"
 	"math/big"
 	"os"
@@ -132,23 +134,6 @@ func GetQuestion(db *sql.DB, number int) (Question, error) {
 	return *NewQuestion(chapter, ID, question, correct, picture, option1, option2, option3, option4), nil
 }
 
-/*
-func CheckQuestion(db *sql.DB, number int, answer int) bool {
-	row := db.QueryRow("SELECT correct FROM tasks WHERE ID = $1", number)
-	if row.Err() != nil {
-		log.Println("invalid question number")
-	}
-	var correct int
-	err := row.Scan(&correct)
-	if err != nil {
-		log.Println(err)
-	}
-	if answer != correct {
-		return false
-	}
-	return true
-}*/
-
 func CountChapters(db *sql.DB) int {
 	row := db.QueryRow("SELECT COUNT(DISTINCT chapter) FROM tasks")
 	if row.Err() != nil || row == nil {
@@ -162,56 +147,6 @@ func CountChapters(db *sql.DB) int {
 	return count
 }
 
-/*func GetChapters(db *sql.DB) []int {
-	rows, err := db.Query("SELECT DISTINCT chapter FROM tasks ORDER BY chapter")
-	if err != nil || rows == nil {
-		return nil
-	}
-	var slice []int
-	for rows.Next() {
-		var chapter int
-		err := rows.Scan(&chapter)
-		if err != nil || chapter == 0 {
-			continue
-		}
-		slice = append(slice, chapter)
-	}
-	return slice
-}*/
-
-/*
-func GenerateRandomQuestion(category int, number int) Question {
-	length, _ := rand.Int(rand.Reader, big.NewInt(8))
-	length.Add(length, big.NewInt(2))
-	correct, _ := rand.Int(rand.Reader, length)
-	ans := make([]string, length.Int64())
-	for i := range ans {
-		ans[i] = generatePassword(20)
-	}
-	return *NewQuestion(
-		category,
-		number,
-		generatePassword(20),
-		int(correct.Int64())-1,
-		-1,
-		ans...,
-	)
-}
-
-func generatePassword(length int) string {
-	kit := "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ,.%*()?@#$~"
-	res := make([]byte, length)
-	for i := range res {
-		r, err := rand.Int(rand.Reader, big.NewInt(int64(len(kit))))
-		if err != nil {
-			log.Fatal(err)
-		}
-		res[i] = kit[r.Int64()]
-	}
-	return string(res)
-}
-*/
-
 func GetRandomInt(max int) int {
 	r, err := rand.Int(rand.Reader, big.NewInt(int64(max)))
 	if err != nil {
@@ -221,7 +156,7 @@ func GetRandomInt(max int) int {
 }
 
 func GetRandomQuestionNumber(db *sql.DB, number int, chapters int, userID int) int {
-	currentChapter := number%chapters + 1
+	currentChapter := (number-1)%chapters + 1
 	rows, err := db.Query("SELECT tasks.ID FROM tasks WHERE tasks.chapter = $1 EXCEPT SELECT notes.taskID FROM notes WHERE notes.userID = $2", currentChapter, userID)
 	f := func(rows *sql.Rows) []int {
 		var questions []int
@@ -246,11 +181,28 @@ func GetRandomQuestionNumber(db *sql.DB, number int, chapters int, userID int) i
 		}
 		questions = f(rows)
 	}
-
-	count := len(questions)
-	if count == 0 {
+	if len(questions) == 0 {
 		return -1
 	}
 
-	return questions[GetRandomInt(count)]
+	return questions[GetRandomInt(len(questions))]
+}
+
+func (q *Question) MixQuestion() {
+	var b [8]byte
+	_, err := rand.Read(b[:])
+	if err != nil {
+		return
+	}
+	rand2.Seed(binary.LittleEndian.Uint64(b[:]))
+	rand2.Shuffle(len(q.Variants),
+		func(i, j int) {
+			q.Variants[i], q.Variants[j] = q.Variants[j], q.Variants[i]
+			if q.Correct == i+1 {
+				q.Correct = j + 1
+			} else if q.Correct == j+1 {
+				q.Correct = i + 1
+			}
+		})
+
 }

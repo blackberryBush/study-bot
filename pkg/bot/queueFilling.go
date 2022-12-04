@@ -93,6 +93,6 @@ func (b *Bot) SendCommands(cmd ...tgbotapi.BotCommand) {
 	msg := tgbotapi.NewSetMyCommands(cmd...)
 	_, err := b.bot.Send(msg)
 	if err != nil {
-		log.Println(err)
+		return
 	}
 }

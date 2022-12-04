@@ -5,6 +5,7 @@ import (
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"sort"
+	"study-bot/pkg/log"
 	"study-bot/pkg/users"
 )
 
@@ -21,8 +22,6 @@ const (
 )
 
 func (b *Bot) getUpdateType(update *tgbotapi.Update) (int, int, users.User, error) {
-	// Закрыть дыру с неизвестными видами содержимого!!!!!
-
 	/*if update.Poll != nil {
 		return updatePoll, 0
 	}*/
@@ -65,6 +64,7 @@ func (b *Bot) handleUpdate(update *tgbotapi.Update) {
 		currentUser = *users.NewUser(chatID)
 		users.InsertUser(b.DB, currentUser)
 	}
+	log.PrintReceive(update, updateType, chatID)
 	if currentUser.Regime == 1 && updateType != messageRegimeNo && updateType != messageRegimeYes {
 		if updateType != updatePollAnswer {
 			currentUser.Regime = 0
@@ -202,6 +202,7 @@ func (b *Bot) iterateTest(user *users.User) {
 			b.getResult(user)
 			return
 		}
+		currentTask.MixQuestion()
 		if currentTask.Picture > 0 {
 			b.PullPicture(fmt.Sprintf("pics\\%d.png", currentTask.Picture), chatID, 0)
 		}

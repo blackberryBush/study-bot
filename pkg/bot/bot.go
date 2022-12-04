@@ -84,6 +84,7 @@ func lastSend(chatID int, messageTimes map[int]time.Time) bool {
 func (b *Bot) TimeStart() {
 	messageTimes := make(map[int]time.Time)
 	timer := time.NewTicker(time.Second / 30)
+	defer timer.Stop()
 	for range timer.C {
 		b.sendQueue.Range(func(i int, v ItemToSend) bool {
 			if v.queue > 0 && lastSend(i, messageTimes) {
