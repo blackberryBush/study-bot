@@ -122,7 +122,7 @@ func (b *Bot) handleCommand(message *tgbotapi.Message, user *users.User) error {
 		if user.PollRun == -1 {
 			users.GetLastStats(b.DB, user)
 			b.getResult(user)
-		} else if user.PollRun < b.Chapters {
+		} else if user.PollRun < len(b.Chapters) {
 			keyboardDefault := tgbotapi.NewKeyboardButtonRow(
 				tgbotapi.NewKeyboardButton(`Да`),
 				tgbotapi.NewKeyboardButton(`Нет`))
@@ -196,7 +196,7 @@ func (b *Bot) handlePollAnswer(ans *tgbotapi.PollAnswer, user *users.User) error
 
 func (b *Bot) iterateTest(user *users.User) {
 	chatID := user.ID
-	if user.PollRun < b.Chapters*b.iterations {
+	if user.PollRun < len(b.Chapters)*b.iterations {
 		user.PollRun++
 		questionID := users.GetRandomQuestionNumber(b.DB, user.PollRun, b.Chapters, user.ID)
 		currentTask, err := users.GetQuestion(b.DB, questionID)

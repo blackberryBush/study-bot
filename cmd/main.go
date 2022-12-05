@@ -2,9 +2,12 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	_ "github.com/lib/pq"
 	"github.com/spf13/viper"
 	"log"
+	"os"
 	"study-bot/pkg/bot"
 	"study-bot/pkg/users"
 )
@@ -18,12 +21,26 @@ func getToken() string {
 	return viper.GetString("token")
 }
 
+func NewPostgresDB() (*sql.DB, error) {
+	db, err := sql.Open("postgres", fmt.Sprintf("host=%s port=5432 user=postgres dbname=postgres password=%s sslmode=disable",
+		os.Getenv("DB_HOST"), os.Getenv("DB_PASSWORD")))
+	if err != nil {
+		return nil, err
+	}
+	err = db.Ping()
+	if err != nil {
+		return nil, err
+	}
+	return db, nil
+}
+
 func main() {
 	botAPI, err := tgbotapi.NewBotAPI(getToken())
 	if err != nil {
 		log.Fatal(err)
 	}
-	db, err := sql.Open("sqlite3", "data.db")
+	/*db, err := sql.Open("sqlite3", "data.db")*/
+	db, err := NewPostgresDB()
 	if err != nil {
 		log.Fatal(err)
 	}

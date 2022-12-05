@@ -53,7 +53,17 @@ func (b *Bot) PullSticker(name string, chatID int, byFile bool, reply int) error
 	return nil
 }
 
+func cutString(text string) string {
+	if len(text) >= 99 {
+		return text[:99]
+	}
+	return text
+}
+
 func (b *Bot) PullPoll(id int, question string, chatID int, reply int, isMultiple bool, correct int, ans ...string) error {
+	for i := range ans {
+		ans[i] = cutString(ans[i])
+	}
 	msg := tgbotapi.NewPoll(int64(chatID), question, ans...)
 	if reply > 0 {
 		msg.ReplyToMessageID = reply

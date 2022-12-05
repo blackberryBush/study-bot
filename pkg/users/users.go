@@ -4,7 +4,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	_ "github.com/mattn/go-sqlite3"
+	//_ "github.com/mattn/go-sqlite3"
+	_ "github.com/lib/pq"
 	"log"
 )
 
@@ -36,8 +37,8 @@ func CreateUsers(db *sql.DB) {
 		"pollRun	INTEGER, " +
 		"corrects 	INTEGER, " +
 		"regime 	INTEGER, " +
-		"worst 		BLOB, " +
-		"chapters 	BLOB)")
+		"worst 		jsonb, " +
+		"chapters 	jsonb)")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -54,9 +55,7 @@ func InsertUser(db *sql.DB, user User) {
 		fmt.Println(err)
 		return
 	}
-	// запрос наверно переделать
-	//		"ON DUPLICATE KEY UPDATE PollRun=%d, Corrects=%d, Regime=%d, Worst=\"%s\"",
-	_, err = db.Exec("INSERT INTO users(userID, pollRun, corrects, regime, worst, chapters) VALUES (?,?,?,?,?,?)",
+	_, err = db.Exec("INSERT INTO users(userID, pollRun, corrects, regime, worst, chapters) VALUES ($1,$2,$3,$4,$5,$6)",
 		user.ID, user.PollRun, user.Corrects, user.Regime, m, c)
 	if err != nil {
 		log.Println(err)
@@ -102,15 +101,3 @@ func UpdateUser(db *sql.DB, user User) {
 		log.Println(err)
 	}
 }
-
-/*
-func UpdatePollRun(db *sql.DB, poll int, userID int) {
-	query := fmt.Sprintf("SELECT * FROM users WHERE userID = %d", userID)
-	row := db.QueryRow(query)
-	if row.Err() == nil {
-		query = fmt.Sprintf("UPDATE users SET PollRun = %d WHERE userID = %d", poll, UserID)
-		_, err := db.Exec(query)
-	} else {
-
-	}
-}*/

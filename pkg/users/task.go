@@ -6,7 +6,10 @@ import (
 	"encoding/binary"
 	"encoding/csv"
 	"fmt"
-	_ "github.com/mattn/go-sqlite3"
+	"sort"
+
+	//_ "github.com/mattn/go-sqlite3"
+	_ "github.com/lib/pq"
 	rand2 "golang.org/x/exp/rand"
 	"log"
 	"math/big"
@@ -33,13 +36,6 @@ func NewQuestion(category int, number int, problem string, correct int, picture 
 		Picture:  picture,
 		Variants: variants,
 	}
-}
-
-func cutString(text string) string {
-	if len(text) >= 99 {
-		return text[:99]
-	}
-	return text
 }
 
 func fileExists(filename string) bool {
@@ -114,8 +110,8 @@ func CsvToSQLite(filename string, db *sql.DB) {
 			break
 		}
 		if chapter, ID, correct, picture, check := checkTask(data); check {
-			_, err = db.Exec("INSERT INTO tasks(chapter, ID, question, option1, option2, option3, option4, correct, picture) values (?,?,?,?,?,?,?,?,?)",
-				chapter, ID, data[2], cutString(data[3]), cutString(data[4]), cutString(data[5]), cutString(data[6]), correct, picture)
+			_, err = db.Exec("INSERT INTO tasks(chapter, ID, question, option1, option2, option3, option4, correct, picture) values ($1,$2,$3,$4,$5,$6,$7,$8,$9)",
+				chapter, ID, data[2], data[3], data[4], data[5], data[6], correct, picture)
 			if err != nil {
 				log.Println(err)
 			}
@@ -134,17 +130,22 @@ func GetQuestion(db *sql.DB, number int) (Question, error) {
 	return *NewQuestion(chapter, ID, question, correct, picture, option1, option2, option3, option4), nil
 }
 
-func CountChapters(db *sql.DB) int {
-	row := db.QueryRow("SELECT COUNT(DISTINCT chapter) FROM tasks")
-	if row.Err() != nil || row == nil {
-		return -1
-	}
-	count := 0
-	err := row.Scan(&count)
+func CountChapters(db *sql.DB) []int {
+	rows, err := db.Query("SELECT DISTINCT chapter FROM tasks")
 	if err != nil {
-		return -1
+		return nil
 	}
-	return count
+	var chapters []int
+	for rows.Next() {
+		var chapter int
+		err := rows.Scan(&chapter)
+		if err != nil || chapter == 0 {
+			continue
+		}
+		chapters = append(chapters, chapter)
+	}
+	sort.Ints(chapters)
+	return chapters
 }
 
 func GetRandomInt(max int) int {
@@ -155,8 +156,8 @@ func GetRandomInt(max int) int {
 	return int(r.Int64())
 }
 
-func GetRandomQuestionNumber(db *sql.DB, number int, chapters int, userID int) int {
-	currentChapter := (number-1)%chapters + 1
+func GetRandomQuestionNumber(db *sql.DB, number int, chapters []int, userID int) int {
+	currentChapter := chapters[(number-1)%len(chapters)]
 	rows, err := db.Query("SELECT tasks.ID FROM tasks WHERE tasks.chapter = $1 EXCEPT SELECT notes.taskID FROM notes WHERE notes.userID = $2", currentChapter, userID)
 	f := func(rows *sql.Rows) []int {
 		var questions []int

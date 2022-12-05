@@ -2,6 +2,7 @@ package users
 
 import (
 	"database/sql"
+	_ "github.com/lib/pq"
 	"log"
 )
 
@@ -36,7 +37,7 @@ func CreateNotes(db *sql.DB) {
 }
 
 func InputNote(db *sql.DB, note Note) {
-	_, err := db.Exec("INSERT INTO notes(userID, pollID, taskID, answer, correct) VALUES (?,?,?,?,?)",
+	_, err := db.Exec("INSERT INTO notes(userID, pollID, taskID, answer, correct) VALUES ($1,$2,$3,$4,$5)",
 		note.UserID, note.PollID, note.TaskID, note.Answer, note.Correct)
 	if err != nil {
 		log.Println(err)

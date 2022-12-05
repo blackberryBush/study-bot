@@ -12,7 +12,7 @@ type Bot struct {
 	bot        *tgbotapi.BotAPI
 	sendQueue  *KitToSend
 	DB         *sql.DB
-	Chapters   int
+	Chapters   []int
 	iterations int
 	timers     map[int]*time.Timer
 }
@@ -28,7 +28,7 @@ func NewBot(bot *tgbotapi.BotAPI, dbTasks *sql.DB) *Bot {
 		bot:        bot,
 		sendQueue:  NewKitToSend(),
 		DB:         dbTasks,
-		Chapters:   1,
+		Chapters:   nil,
 		iterations: iterations,
 		timers:     make(map[int]*time.Timer),
 	}
