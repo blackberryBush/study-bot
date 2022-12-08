@@ -162,6 +162,7 @@ func (b *Bot) handleRegimeYes(message *tgbotapi.Message, user *users.User) {
 func (b *Bot) handleText(message *tgbotapi.Message, user *users.User) {
 	chatID := user.ID
 	b.PullText(message.Text, chatID, message.MessageID)
+	b.PullFile("Глава_1.doc", chatID, message.MessageID)
 }
 
 /* На удаление

@@ -19,7 +19,7 @@ func (b *Bot) Send(chatID int) (err error) {
 	}
 	log.PrintSent(&data.data)
 	switch data.data.(type) {
-	case tgbotapi.MessageConfig, tgbotapi.StickerConfig, tgbotapi.PhotoConfig:
+	case tgbotapi.MessageConfig, tgbotapi.StickerConfig, tgbotapi.PhotoConfig, tgbotapi.DocumentConfig:
 		_, err = b.bot.Send(data.data)
 	case tgbotapi.CallbackConfig, tgbotapi.DeleteMessageConfig:
 		_, err = b.bot.Request(data.data)

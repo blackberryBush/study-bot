@@ -97,6 +97,23 @@ func (b *Bot) PullPicture(filename string, chatID int, reply int) error {
 	return nil
 }
 
+func (b *Bot) PullFile(filename string, chatID int, reply int) error {
+	file, err := os.ReadFile(filename)
+	if err != nil {
+		log.Println(err)
+	}
+	fileBytes := tgbotapi.FileBytes{
+		Name:  "file.doc",
+		Bytes: file,
+	}
+	msg := tgbotapi.NewDocument(int64(chatID), fileBytes)
+	if reply > 0 {
+		msg.ReplyToMessageID = reply
+	}
+	go b.Pull(chatID, *NewChattable(msg))
+	return nil
+}
+
 // Отправляют апдейт сразу, не ожидая очереди
 
 func (b *Bot) SendCommands(cmd ...tgbotapi.BotCommand) {
