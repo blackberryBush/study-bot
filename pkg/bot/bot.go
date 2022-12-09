@@ -47,31 +47,11 @@ func (b *Bot) Run() {
 		Command:     "/getstats",
 		Description: "Вывести текущий результат",
 	}, tgbotapi.BotCommand{
-		Command:     "/start",
-		Description: "Сброс статистики",
+		Command:     "/study",
+		Description: "Открыть учебник",
 	})
 	for update := range updates {
 		b.handleUpdate(&update)
-		/*var err error
-		chatID := update.SentFrom().ID
-		if update.Poll != nil {
-			fmt.Println(update.Poll.Options)
-		} else {
-			PrintReceive(&update)
-		}
-		if b.param, b.changePassLength, err = GetData("UsersDB", "Options", int(chatID)); err != nil {
-			if err := InsertData("UsersDB", "Options", int(chatID), b.param, b.changePassLength); err != nil {
-				log.Println(err)
-			}
-		}
-		if update.Message != nil {
-			err = b.handleMessage(update.Message, int(update.Message.Chat.ID))
-		} else if update.CallbackQuery != nil {
-			err = b.handleCallbackQuery(update.CallbackQuery, int(chatID))
-		}
-		if err != nil {
-			log.Println(err)
-		}*/
 	}
 }
 

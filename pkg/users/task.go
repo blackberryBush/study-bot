@@ -66,7 +66,7 @@ func checkTask(data []string) (int, int, int, int, bool) {
 	if err != nil {
 		return chapter, ID, correct, -1, true
 	}
-	if !fileExists(fmt.Sprintf("pics\\%d.png", picture)) {
+	if !fileExists(fmt.Sprintf("pics/%d.png", picture)) {
 		picture = -1
 	}
 	return chapter, ID, correct, picture, true

@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"os"
 	"sort"
+	"strings"
 	"study-bot/pkg/log"
 	"study-bot/pkg/users"
 )
@@ -94,6 +96,8 @@ func (b *Bot) handleUpdate(update *tgbotapi.Update) {
 	case messageRegimeYes:
 		b.handleRegimeYes(update.Message, &currentUser)
 	case callbackQuery:
+		fmt.Println("привет я тут")
+		b.handleCallbackQuery(update.CallbackQuery, &currentUser)
 	default:
 		b.handleUnknown()
 	}
@@ -132,6 +136,8 @@ func (b *Bot) handleCommand(message *tgbotapi.Message, user *users.User) error {
 			user.PollRun--
 			b.getResult(user)
 		}
+	case "study":
+		b.showTextbook(user)
 	default:
 		b.handleUnknown()
 	}
@@ -162,7 +168,6 @@ func (b *Bot) handleRegimeYes(message *tgbotapi.Message, user *users.User) {
 func (b *Bot) handleText(message *tgbotapi.Message, user *users.User) {
 	chatID := user.ID
 	b.PullText(message.Text, chatID, message.MessageID)
-	b.PullFile("Глава_1.doc", chatID, message.MessageID)
 }
 
 /* На удаление
@@ -208,7 +213,7 @@ func (b *Bot) iterateTest(user *users.User) {
 		}
 		currentTask.MixQuestion()
 		if currentTask.Picture > 0 {
-			b.PullPicture(fmt.Sprintf("pics\\%d.png", currentTask.Picture), chatID, 0)
+			b.PullPicture(fmt.Sprintf("pics/%d.png", currentTask.Picture), chatID, 0)
 		}
 		b.PullPoll(currentTask.Number, currentTask.Problem, chatID, 0, false, currentTask.Correct, currentTask.Variants...)
 	} else {
@@ -248,26 +253,48 @@ func (b *Bot) handleUnknown() error {
 	return errors.New("unknown item was received")
 }
 
-// КАКАЯ-ТО ШЛЯПА НЕ ТРОГАТЬ (вызывает колбеки)
-/*
+func (b *Bot) showTextbook(user *users.User) {
+	chatID := user.ID
+	keyboard := getKeyboardChapters()
+	msg := tgbotapi.NewMessage(int64(chatID), "Выберите главу: ")
+	msg.ReplyMarkup = keyboard
+	go b.Pull(chatID, *NewChattable(msg))
+}
+
+func getFiles(directory string) []string {
+	files, err := os.ReadDir(directory)
+	if err != nil {
+		fmt.Println(err)
+	}
+	arr := make([]string, 0)
+	for _, file := range files {
+		if !file.IsDir() {
+			arr = append(arr, file.Name())
+		}
+	}
+	return arr
+}
+
+func getKeyboardChapters() tgbotapi.InlineKeyboardMarkup {
+	files := getFiles("textbook/")
+	k := len(files)
+	buttons := make([][]tgbotapi.InlineKeyboardButton, k)
+	for i := 0; i < k; i++ {
+		k, _, _ := strings.Cut(files[i], ".")
+		buttons[i] = tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(strings.Replace(k, "_", " ", -1), "chapter"+files[i]))
+	}
+	return tgbotapi.NewInlineKeyboardMarkup(buttons...)
+
+}
+
 func (b *Bot) handleCallbackQuery(callback *tgbotapi.CallbackQuery, user *users.User) error {
 	chatID := user.ID
-	switch callback.Data {
-	case "testContinueNo":
-		b.PullText("Советую попробовать еще раз...", chatID, 0)
-	case "testContinueYes":
-		// Получить из бд нужный вопрос
-		a, err := task.GetQuestion(b.DB, user.PollRun+1)
-		if err != nil {
-			b.PullText("Произошла ошибка при тестировании...", chatID, 0)
-			b.getResult(user)
-			return err
-		}
-		log.Println(a)
-		b.PullPoll(a.Number, a.Problem, chatID, 0, false, a.Variants...)
+	switch {
+	case strings.HasPrefix(callback.Data, "chapter"):
+		_, k1, _ := strings.Cut(callback.Data, "chapter")
+		b.PullFile("textbook/"+k1, chatID, 0, strings.Replace(k1, "_", " ", -1))
 	default:
 		return b.handleUnknown()
 	}
 	return nil
 }
-*/

@@ -97,13 +97,13 @@ func (b *Bot) PullPicture(filename string, chatID int, reply int) error {
 	return nil
 }
 
-func (b *Bot) PullFile(filename string, chatID int, reply int) error {
+func (b *Bot) PullFile(filename string, chatID int, reply int, newFilename string) error {
 	file, err := os.ReadFile(filename)
 	if err != nil {
 		log.Println(err)
 	}
 	fileBytes := tgbotapi.FileBytes{
-		Name:  "file.doc",
+		Name:  newFilename,
 		Bytes: file,
 	}
 	msg := tgbotapi.NewDocument(int64(chatID), fileBytes)
