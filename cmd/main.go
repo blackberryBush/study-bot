@@ -45,7 +45,7 @@ func main() {
 		log.Fatal(err)
 	}
 	b := bot.NewBot(botAPI, db)
-	users.CsvToSQLite("tasks.csv", b.DB)
+	users.CsvToPostgres("tasks.csv", b.DB)
 	b.Chapters = users.CountChapters(b.DB)
 	users.CreateUsers(b.DB)
 	users.CreateNotes(b.DB)

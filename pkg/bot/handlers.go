@@ -6,6 +6,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"study-bot/pkg/log"
 	"study-bot/pkg/users"
@@ -180,7 +181,6 @@ func (b *Bot) handlePoll(message *tgbotapi.Poll, chatID int) {
 func (b *Bot) handlePollAnswer(ans *tgbotapi.PollAnswer, user *users.User) error {
 	chatID := user.ID
 	if user.PollRun != -1 {
-		// Проверить время
 		checkTask, checkChapter, checkCorrect := users.GetTask(b.DB, ans.PollID, chatID)
 		if checkTask <= 0 {
 			return fmt.Errorf("check error")
@@ -281,29 +281,40 @@ func getKeyboardChapters() tgbotapi.InlineKeyboardMarkup {
 	for i := 0; i < k; i++ {
 		buttons[i] = tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(
 			strings.Replace(strings.Replace(files[i], "_", " ", -1), " 0", " ", -1),
-			"chapter"+files[i]))
+			"cH"+strconv.Itoa(i)))
 	}
 	return tgbotapi.NewInlineKeyboardMarkup(buttons...)
 }
 
-func getKeyboardParagraphs(dir string) tgbotapi.InlineKeyboardMarkup {
-	files := getFiles("textbook/"+dir+"/", false)
+func getKeyboardParagraphs(dirID int) tgbotapi.InlineKeyboardMarkup {
+	files1 := getFiles("textbook/", true)
+	files := getFiles("textbook/"+files1[dirID]+"/", false)
 	k := len(files)
+	if k == 0 {
+		return tgbotapi.InlineKeyboardMarkup{}
+	}
 	buttons := make([][]tgbotapi.InlineKeyboardButton, k)
 	for i := 0; i < k; i++ {
-		k, _, found := strings.Cut(strings.Replace(files[i], "_", " ", -1), ".pdf")
+		p, _, found := strings.Cut(strings.Replace(files[i], "_", " ", -1), ".pdf")
 		if !found {
-			k, _, _ = strings.Cut(strings.Replace(files[i], "_", " ", -1), ".doc")
+			p, _, _ = strings.Cut(strings.Replace(files[i], "_", " ", -1), ".doc")
 		}
+		fmt.Println(p)
 		buttons[i] = tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(
-			k, "chapterFile"+dir+"/"+files[i]))
+			p, "cF"+strconv.Itoa(dirID)+"ph"+strconv.Itoa(i)))
 	}
 	return tgbotapi.NewInlineKeyboardMarkup(buttons...)
 }
 
-func (b *Bot) showTextbookFiles(user *users.User, chapter string) {
+func getFilename(chapter int, paragraph int) (string, string) {
+	files1 := getFiles("textbook/", true)
+	files2 := getFiles("textbook/"+files1[chapter], false)
+	return "textbook/" + files1[chapter] + "/" + files2[paragraph], files2[paragraph]
+}
+
+func (b *Bot) showTextbookFiles(user *users.User, chapterID int) {
 	chatID := user.ID
-	keyboard := getKeyboardParagraphs(chapter)
+	keyboard := getKeyboardParagraphs(chapterID)
 	msg := tgbotapi.NewMessage(int64(chatID), "Выберите пункт главы: ")
 	msg.ReplyMarkup = keyboard
 	go b.Pull(chatID, *NewChattable(msg))
@@ -312,12 +323,17 @@ func (b *Bot) showTextbookFiles(user *users.User, chapter string) {
 func (b *Bot) handleCallbackQuery(callback *tgbotapi.CallbackQuery, user *users.User) error {
 	chatID := user.ID
 	switch {
-	case strings.HasPrefix(callback.Data, "chapterFile"):
-		_, k, _ := strings.Cut(callback.Data, "chapterFile")
-		b.PullFile("textbook/"+k, chatID, 0, strings.Replace(k, "_", " ", -1))
-	case strings.HasPrefix(callback.Data, "chapter"):
-		_, k, _ := strings.Cut(callback.Data, "chapter")
-		b.showTextbookFiles(user, k)
+	case strings.HasPrefix(callback.Data, "cF"):
+		_, k, _ := strings.Cut(callback.Data, "cF")
+		k1, k2, _ := strings.Cut(k, "ph")
+		intK1, _ := strconv.Atoi(k1)
+		intK2, _ := strconv.Atoi(k2)
+		s, s1 := getFilename(intK1, intK2)
+		b.PullFile(s, chatID, 0, strings.Replace(s1, "_", " ", -1))
+	case strings.HasPrefix(callback.Data, "cH"):
+		_, k, _ := strings.Cut(callback.Data, "cH")
+		v, _ := strconv.Atoi(k)
+		b.showTextbookFiles(user, v)
 	default:
 		return b.handleUnknown()
 	}

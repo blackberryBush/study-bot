@@ -72,7 +72,7 @@ func checkTask(data []string) (int, int, int, int, bool) {
 	return chapter, ID, correct, picture, true
 }
 
-func CsvToSQLite(filename string, db *sql.DB) {
+func CsvToPostgres(filename string, db *sql.DB) {
 	_, err := db.Exec("DROP TABLE IF EXISTS tasks")
 	if err != nil {
 		log.Fatal(err)
