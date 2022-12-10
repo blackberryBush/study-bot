@@ -96,7 +96,6 @@ func (b *Bot) handleUpdate(update *tgbotapi.Update) {
 	case messageRegimeYes:
 		b.handleRegimeYes(update.Message, &currentUser)
 	case callbackQuery:
-		fmt.Println("привет я тут")
 		b.handleCallbackQuery(update.CallbackQuery, &currentUser)
 	default:
 		b.handleUnknown()
@@ -261,14 +260,14 @@ func (b *Bot) showTextbook(user *users.User) {
 	go b.Pull(chatID, *NewChattable(msg))
 }
 
-func getFiles(directory string) []string {
+func getFiles(directory string, isDir bool) []string {
 	files, err := os.ReadDir(directory)
 	if err != nil {
 		fmt.Println(err)
 	}
 	arr := make([]string, 0)
 	for _, file := range files {
-		if !file.IsDir() {
+		if file.IsDir() == isDir {
 			arr = append(arr, file.Name())
 		}
 	}
@@ -276,23 +275,49 @@ func getFiles(directory string) []string {
 }
 
 func getKeyboardChapters() tgbotapi.InlineKeyboardMarkup {
-	files := getFiles("textbook/")
+	files := getFiles("textbook/", true)
 	k := len(files)
 	buttons := make([][]tgbotapi.InlineKeyboardButton, k)
 	for i := 0; i < k; i++ {
-		k, _, _ := strings.Cut(files[i], ".")
-		buttons[i] = tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(strings.Replace(k, "_", " ", -1), "chapter"+files[i]))
+		buttons[i] = tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(
+			strings.Replace(strings.Replace(files[i], "_", " ", -1), " 0", " ", -1),
+			"chapter"+files[i]))
 	}
 	return tgbotapi.NewInlineKeyboardMarkup(buttons...)
+}
 
+func getKeyboardParagraphs(dir string) tgbotapi.InlineKeyboardMarkup {
+	files := getFiles("textbook/"+dir+"/", false)
+	k := len(files)
+	buttons := make([][]tgbotapi.InlineKeyboardButton, k)
+	for i := 0; i < k; i++ {
+		k, _, found := strings.Cut(strings.Replace(files[i], "_", " ", -1), ".pdf")
+		if !found {
+			k, _, _ = strings.Cut(strings.Replace(files[i], "_", " ", -1), ".doc")
+		}
+		buttons[i] = tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(
+			k, "chapterFile"+dir+"/"+files[i]))
+	}
+	return tgbotapi.NewInlineKeyboardMarkup(buttons...)
+}
+
+func (b *Bot) showTextbookFiles(user *users.User, chapter string) {
+	chatID := user.ID
+	keyboard := getKeyboardParagraphs(chapter)
+	msg := tgbotapi.NewMessage(int64(chatID), "Выберите пункт главы: ")
+	msg.ReplyMarkup = keyboard
+	go b.Pull(chatID, *NewChattable(msg))
 }
 
 func (b *Bot) handleCallbackQuery(callback *tgbotapi.CallbackQuery, user *users.User) error {
 	chatID := user.ID
 	switch {
+	case strings.HasPrefix(callback.Data, "chapterFile"):
+		_, k, _ := strings.Cut(callback.Data, "chapterFile")
+		b.PullFile("textbook/"+k, chatID, 0, strings.Replace(k, "_", " ", -1))
 	case strings.HasPrefix(callback.Data, "chapter"):
-		_, k1, _ := strings.Cut(callback.Data, "chapter")
-		b.PullFile("textbook/"+k1, chatID, 0, strings.Replace(k1, "_", " ", -1))
+		_, k, _ := strings.Cut(callback.Data, "chapter")
+		b.showTextbookFiles(user, k)
 	default:
 		return b.handleUnknown()
 	}
