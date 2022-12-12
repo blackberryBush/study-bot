@@ -1,23 +1,32 @@
 version: '3.8'
 
 services:
-  app:
+  study-bot-tester:
     build:
-      dockerfile: Dockerfile
-    container_name: app
+      dockerfile: dockerfile-tester/Dockerfile
+    container_name: study-bot-tester-app
     restart: on-failure
     depends_on:
-      - db
+      - study-bot-db
     environment:
       DB_PASSWORD: "qwerty"
-      DB_HOST: db
+      DB_HOST: study-bot-db
 
-  db:
+  study-bot-control:
+    build:
+      dockerfile: dockerfile-control/Dockerfile
+    container_name: study-bot-control-app
+   # restart: on-failure
+    depends_on:
+      - study-bot-db
+    environment:
+      DB_PASSWORD: "qwerty"
+      DB_HOST: study-bot-db
+
+  study-bot-db:
     restart: always
     image: postgres:latest
-    container_name: database
-    volumes:
-     - ./.database/postgres/data:/var/lib/postgresql/data
+    container_name: study-bot-database
     environment:
       - POSTGRES_PASSWORD=qwerty
     ports:

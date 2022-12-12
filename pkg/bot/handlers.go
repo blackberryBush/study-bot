@@ -24,17 +24,17 @@ const (
 	callbackQuery
 )
 
-func (b *Bot) getUpdateType(update *tgbotapi.Update) (int, int, users.User, error) {
+func (b *Bot) getUpdateType(update *tgbotapi.Update) (int, int64, users.User, error) {
 	/*if update.Poll != nil {
 		return updatePoll, 0
 	}*/
 	if update.PollAnswer != nil {
-		chatID := int(update.PollAnswer.User.ID)
+		chatID := update.PollAnswer.User.ID
 		user, err := users.GetUser(b.DB, chatID)
 		return updatePollAnswer, chatID, user, err
 	}
 	if update.Message != nil {
-		chatID := int(update.Message.From.ID)
+		chatID := update.Message.From.ID
 		user, err := users.GetUser(b.DB, chatID)
 		if update.Message.IsCommand() {
 			return messageCommand, chatID, user, err
@@ -54,7 +54,7 @@ func (b *Bot) getUpdateType(update *tgbotapi.Update) (int, int, users.User, erro
 		return messageUndefined, chatID, user, err
 	}
 	if update.CallbackQuery != nil {
-		chatID := int(update.CallbackQuery.From.ID)
+		chatID := update.CallbackQuery.From.ID
 		user, err := users.GetUser(b.DB, chatID)
 		return callbackQuery, chatID, user, err
 	}

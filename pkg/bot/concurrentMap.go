@@ -40,30 +40,30 @@ func NewItemToSend() *ItemToSend {
 
 type KitToSend struct {
 	mx sync.RWMutex
-	m  map[int]ItemToSend
+	m  map[int64]ItemToSend
 }
 
 func NewKitToSend() *KitToSend {
 	return &KitToSend{
 		mx: sync.RWMutex{},
-		m:  make(map[int]ItemToSend),
+		m:  make(map[int64]ItemToSend),
 	}
 }
 
-func (c *KitToSend) Load(key int) (ItemToSend, bool) {
+func (c *KitToSend) Load(key int64) (ItemToSend, bool) {
 	c.mx.RLock()
 	defer c.mx.RUnlock()
 	val, ok := c.m[key]
 	return val, ok
 }
 
-func (c *KitToSend) Store(key int, value ItemToSend) {
+func (c *KitToSend) Store(key int64, value ItemToSend) {
 	c.mx.Lock()
 	c.m[key] = value
 	c.mx.Unlock()
 }
 
-func (c *KitToSend) StoreData(key int, value chan Chattable) {
+func (c *KitToSend) StoreData(key int64, value chan Chattable) {
 	c.mx.Lock()
 	temp := c.m[key]
 	temp.data = value
@@ -71,14 +71,14 @@ func (c *KitToSend) StoreData(key int, value chan Chattable) {
 	c.mx.Unlock()
 }
 
-func (c *KitToSend) Delete(key int) {
+func (c *KitToSend) Delete(key int64) {
 	c.mx.Lock()
 	delete(c.m, key)
 	c.mx.Unlock()
 }
 
-func (c *KitToSend) Range(f func(key int, value ItemToSend) bool) {
-	tmp := make(map[int]ItemToSend)
+func (c *KitToSend) Range(f func(key int64, value ItemToSend) bool) {
+	tmp := make(map[int64]ItemToSend)
 	c.mx.RLock()
 	for i, v := range c.m {
 		tmp[i] = v
@@ -91,7 +91,7 @@ func (c *KitToSend) Range(f func(key int, value ItemToSend) bool) {
 	}
 }
 
-func (c *KitToSend) QueueInc(key int) {
+func (c *KitToSend) QueueInc(key int64) {
 	c.mx.Lock()
 	defer c.mx.Unlock()
 	if item, ok := c.m[key]; ok {
@@ -100,7 +100,7 @@ func (c *KitToSend) QueueInc(key int) {
 	}
 }
 
-func (c *KitToSend) QueueDec(key int) {
+func (c *KitToSend) QueueDec(key int64) {
 	c.mx.Lock()
 	defer c.mx.Unlock()
 	if item, ok := c.m[key]; ok {

@@ -7,14 +7,14 @@ import (
 )
 
 type Note struct {
-	UserID  int
+	UserID  int64
 	PollID  string
 	TaskID  int
 	Answer  int
 	Correct int
 }
 
-func NewNote(userID int, pollID string, taskID int, answer int, correct int) *Note {
+func NewNote(userID int64, pollID string, taskID int, answer int, correct int) *Note {
 	return &Note{
 		UserID:  userID,
 		PollID:  pollID,
@@ -26,7 +26,7 @@ func NewNote(userID int, pollID string, taskID int, answer int, correct int) *No
 
 func CreateNotes(db *sql.DB) {
 	_, err := db.Exec("CREATE TABLE IF NOT EXISTS notes(" +
-		"userID		INTEGER," +
+		"userID		bigint," +
 		"pollID		TEXT PRIMARY KEY," +
 		"taskID 	INTEGER," +
 		"answer		INTEGER," +
@@ -44,14 +44,14 @@ func InputNote(db *sql.DB, note Note) {
 	}
 }
 
-func UpdateAnswer(db *sql.DB, userID int, pollID string, answer int) {
+func UpdateAnswer(db *sql.DB, userID int64, pollID string, answer int) {
 	_, err := db.Exec("UPDATE notes SET answer=$1 WHERE userID=$2 AND pollID=$3", answer, userID, pollID)
 	if err != nil {
 		log.Println(err)
 	}
 }
 
-func GetTask(db *sql.DB, pollID string, userID int) (int, int, int) {
+func GetTask(db *sql.DB, pollID string, userID int64) (int, int, int) {
 	taskRow := db.QueryRow("SELECT * FROM notes WHERE pollID = $1 AND userID = $2", pollID, userID)
 	if taskRow.Err() != nil {
 		return -1, -1, -1
@@ -68,7 +68,7 @@ func GetTask(db *sql.DB, pollID string, userID int) (int, int, int) {
 	return taskNote.TaskID, t.Category, taskNote.Correct
 }
 
-func ClearUser(db *sql.DB, userID int) {
+func ClearUser(db *sql.DB, userID int64) {
 	_, err := db.Exec("DELETE FROM notes WHERE userID = $1", userID)
 	if err != nil {
 		log.Println(err)

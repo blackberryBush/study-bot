@@ -9,8 +9,8 @@ import (
 
 // для функций, которые будут заполнять очередь сообщениями в формате Chattable
 
-func (b *Bot) PullText(text string, chatID int, reply int, args ...any) {
-	msg := tgbotapi.NewMessage(int64(chatID), text)
+func (b *Bot) PullText(text string, chatID int64, reply int, args ...any) {
+	msg := tgbotapi.NewMessage(chatID, text)
 	if reply > 0 {
 		msg.ReplyToMessageID = reply
 	}
@@ -27,7 +27,7 @@ func (b *Bot) PullText(text string, chatID int, reply int, args ...any) {
 	go b.Pull(chatID, *NewChattable(msg))
 }
 
-func (b *Bot) PullSticker(name string, chatID int, byFile bool, reply int) error {
+func (b *Bot) PullSticker(name string, chatID int64, byFile bool, reply int) error {
 	var stickerID tgbotapi.RequestFileData
 	if byFile {
 		photoBytes, err := os.ReadFile(name)
@@ -45,7 +45,7 @@ func (b *Bot) PullSticker(name string, chatID int, byFile bool, reply int) error
 			stickerID = tgbotapi.FileID(name)
 		}
 	}
-	msg := tgbotapi.NewSticker(int64(chatID), stickerID)
+	msg := tgbotapi.NewSticker(chatID, stickerID)
 	if reply > 0 {
 		msg.ReplyToMessageID = reply
 	}
@@ -61,11 +61,11 @@ func cutString(text string, length int) string {
 	return text
 }
 
-func (b *Bot) PullPoll(id int, question string, chatID int, reply int, isMultiple bool, correct int, ans ...string) error {
+func (b *Bot) PullPoll(id int, question string, chatID int64, reply int, isMultiple bool, correct int, ans ...string) error {
 	for i := range ans {
 		ans[i] = cutString(ans[i], 100)
 	}
-	msg := tgbotapi.NewPoll(int64(chatID), question, ans...)
+	msg := tgbotapi.NewPoll(chatID, question, ans...)
 	if reply > 0 {
 		msg.ReplyToMessageID = reply
 	}
@@ -75,13 +75,13 @@ func (b *Bot) PullPoll(id int, question string, chatID int, reply int, isMultipl
 	return nil
 }
 
-func (b *Bot) PullDeleteMessage(messageID int, chatID int) error {
-	msg := tgbotapi.NewDeleteMessage(int64(chatID), messageID)
+func (b *Bot) PullDeleteMessage(messageID int, chatID int64) error {
+	msg := tgbotapi.NewDeleteMessage(chatID, messageID)
 	go b.Pull(chatID, *NewChattable(msg))
 	return nil
 }
 
-func (b *Bot) PullPicture(filename string, chatID int, reply int) error {
+func (b *Bot) PullPicture(filename string, chatID int64, reply int) error {
 	photoBytes, err := os.ReadFile(filename)
 	if err != nil {
 		log.Println(err)
@@ -90,7 +90,7 @@ func (b *Bot) PullPicture(filename string, chatID int, reply int) error {
 		Name:  "picture",
 		Bytes: photoBytes,
 	}
-	msg := tgbotapi.NewPhoto(int64(chatID), photoFileBytes)
+	msg := tgbotapi.NewPhoto(chatID, photoFileBytes)
 	if reply > 0 {
 		msg.ReplyToMessageID = reply
 	}
@@ -98,7 +98,7 @@ func (b *Bot) PullPicture(filename string, chatID int, reply int) error {
 	return nil
 }
 
-func (b *Bot) PullFile(filename string, chatID int, reply int, newFilename string) error {
+func (b *Bot) PullFile(filename string, chatID int64, reply int, newFilename string) error {
 	file, err := os.ReadFile(filename)
 	if err != nil {
 		log.Println(err)
@@ -107,7 +107,7 @@ func (b *Bot) PullFile(filename string, chatID int, reply int, newFilename strin
 		Name:  newFilename,
 		Bytes: file,
 	}
-	msg := tgbotapi.NewDocument(int64(chatID), fileBytes)
+	msg := tgbotapi.NewDocument(chatID, fileBytes)
 	if reply > 0 {
 		msg.ReplyToMessageID = reply
 	}

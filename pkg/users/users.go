@@ -10,7 +10,7 @@ import (
 )
 
 type User struct {
-	ID       int
+	ID       int64
 	PollRun  int
 	Corrects int
 	Regime   int
@@ -18,7 +18,7 @@ type User struct {
 	Chapters map[int]int
 }
 
-func NewUser(ID int) *User {
+func NewUser(ID int64) *User {
 	return &User{
 		ID:       ID,
 		PollRun:  -1,
@@ -33,7 +33,7 @@ func NewUser(ID int) *User {
 
 func CreateUsers(db *sql.DB) {
 	_, err := db.Exec("CREATE TABLE IF NOT EXISTS users(" +
-		"userID 	INTEGER PRIMARY KEY, " +
+		"userID 	bigint PRIMARY KEY, " +
 		"pollRun	INTEGER, " +
 		"corrects 	INTEGER, " +
 		"regime 	INTEGER, " +
@@ -62,7 +62,7 @@ func InsertUser(db *sql.DB, user User) {
 	}
 }
 
-func GetUser(db *sql.DB, userID int) (User, error) {
+func GetUser(db *sql.DB, userID int64) (User, error) {
 	row := db.QueryRow("SELECT * FROM users WHERE userID = $1", userID)
 	if row.Err() != nil {
 		return User{ID: 0, PollRun: 0, Corrects: 0, Regime: 0, Worst: nil, Chapters: nil}, row.Err()

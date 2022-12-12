@@ -39,7 +39,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	/*db, err := sql.Open("sqlite3", "data.db")*/
 	db, err := NewPostgresDB()
 	if err != nil {
 		log.Fatal(err)

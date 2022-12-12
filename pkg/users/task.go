@@ -156,7 +156,7 @@ func GetRandomInt(max int) int {
 	return int(r.Int64())
 }
 
-func GetRandomQuestionNumber(db *sql.DB, number int, chapters []int, userID int) int {
+func GetRandomQuestionNumber(db *sql.DB, number int, chapters []int, userID int64) int {
 	currentChapter := chapters[(number-1)%len(chapters)]
 	rows, err := db.Query("SELECT tasks.ID FROM tasks WHERE tasks.chapter = $1 EXCEPT SELECT notes.taskID FROM notes WHERE notes.userID = $2", currentChapter, userID)
 	f := func(rows *sql.Rows) []int {

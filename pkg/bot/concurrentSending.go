@@ -7,7 +7,7 @@ import (
 	"study-bot/pkg/users"
 )
 
-func (b *Bot) Send(chatID int) (err error) {
+func (b *Bot) Send(chatID int64) (err error) {
 	b.sendQueue.QueueDec(chatID)
 	item, ok := b.sendQueue.Load(chatID)
 	if !ok {
@@ -33,7 +33,7 @@ func (b *Bot) Send(chatID int) (err error) {
 	return err
 }
 
-func (b *Bot) Pull(chatID int, c Chattable) {
+func (b *Bot) Pull(chatID int64, c Chattable) {
 	if v, ok := b.sendQueue.Load(chatID); ok {
 		if v.queue > 7 {
 			return

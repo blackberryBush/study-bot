@@ -14,7 +14,7 @@ type Bot struct {
 	DB         *sql.DB
 	Chapters   []int
 	iterations int
-	timers     map[int]*time.Timer
+	timers     map[int64]*time.Timer
 }
 
 func NewBot(bot *tgbotapi.BotAPI, dbTasks *sql.DB) *Bot {
@@ -30,7 +30,7 @@ func NewBot(bot *tgbotapi.BotAPI, dbTasks *sql.DB) *Bot {
 		DB:         dbTasks,
 		Chapters:   nil,
 		iterations: iterations,
-		timers:     make(map[int]*time.Timer),
+		timers:     make(map[int64]*time.Timer),
 	}
 }
 
@@ -55,7 +55,7 @@ func (b *Bot) Run() {
 	}
 }
 
-func lastSend(chatID int, messageTimes map[int]time.Time) bool {
+func lastSend(chatID int64, messageTimes map[int64]time.Time) bool {
 	if val, ok := messageTimes[chatID]; ok {
 		dt := time.Now()
 		return dt.After(val.Add(time.Second))
@@ -64,11 +64,11 @@ func lastSend(chatID int, messageTimes map[int]time.Time) bool {
 }
 
 func (b *Bot) TimeStart() {
-	messageTimes := make(map[int]time.Time)
+	messageTimes := make(map[int64]time.Time)
 	timer := time.NewTicker(time.Second / 30)
 	defer timer.Stop()
 	for range timer.C {
-		b.sendQueue.Range(func(i int, v ItemToSend) bool {
+		b.sendQueue.Range(func(i int64, v ItemToSend) bool {
 			if v.queue > 0 && lastSend(i, messageTimes) {
 				err := b.Send(i)
 				if err != nil {

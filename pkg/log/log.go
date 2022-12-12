@@ -19,7 +19,7 @@ const (
 	callbackQuery
 )
 
-func PrintReceive(update *tgbotapi.Update, updateType int, chatID int) {
+func PrintReceive(update *tgbotapi.Update, updateType int, chatID int64) {
 	user := update.SentFrom()
 	if user == nil && updateType == updatePollAnswer {
 		user = &update.PollAnswer.User
