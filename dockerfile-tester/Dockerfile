@@ -1,6 +1,6 @@
 FROM golang:alpine AS builder
 WORKDIR /app
-COPY .. ./
+COPY . .
 RUN go build -o main ./cmd/tester_bot/
 
 FROM alpine:latest

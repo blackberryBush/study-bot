@@ -18,7 +18,7 @@ func getToken() string {
 	if err := viper.ReadInConfig(); err != nil {
 		return ""
 	}
-	return viper.GetString("token")
+	return viper.GetString("token.tester")
 }
 
 func NewPostgresDB() (*sql.DB, error) {
@@ -42,6 +42,10 @@ func main() {
 	db, err := NewPostgresDB()
 	if err != nil {
 		log.Fatal(err)
+	}
+	err = db.Ping()
+	if err != nil {
+		fmt.Println(err, "ismsks")
 	}
 	b := bot.NewBot(botAPI, db)
 	users.CsvToPostgres("tasks.csv", b.DB)
