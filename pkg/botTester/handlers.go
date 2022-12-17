@@ -1,4 +1,4 @@
-package bot
+package botTester
 
 import (
 	"errors"
@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"study-bot/pkg/bot"
 	"study-bot/pkg/log"
 	"study-bot/pkg/users"
 )
@@ -24,7 +25,7 @@ const (
 	callbackQuery
 )
 
-func (b *Bot) getUpdateType(update *tgbotapi.Update) (int, int64, users.User, error) {
+func (b *TesterBot) getUpdateType(update *tgbotapi.Update) (int, int64, users.User, error) {
 	/*if update.Poll != nil {
 		return updatePoll, 0
 	}*/
@@ -61,7 +62,8 @@ func (b *Bot) getUpdateType(update *tgbotapi.Update) (int, int64, users.User, er
 	return messageUndefined, 0, users.User{}, nil
 }
 
-func (b *Bot) handleUpdate(update *tgbotapi.Update) {
+func (b *TesterBot) HandleUpdate(update *tgbotapi.Update) {
+	fmt.Println("Бац")
 	updateType, chatID, currentUser, err := b.getUpdateType(update)
 	if err != nil {
 		currentUser = *users.NewUser(chatID)
@@ -104,7 +106,7 @@ func (b *Bot) handleUpdate(update *tgbotapi.Update) {
 	users.UpdateUser(b.DB, currentUser)
 }
 
-func (b *Bot) handleCommand(message *tgbotapi.Message, user *users.User) error {
+func (b *TesterBot) handleCommand(message *tgbotapi.Message, user *users.User) error {
 	chatID := user.ID
 	switch message.Command() {
 	case "start":
@@ -144,13 +146,13 @@ func (b *Bot) handleCommand(message *tgbotapi.Message, user *users.User) error {
 	return nil
 }
 
-func (b *Bot) handleSticker(message *tgbotapi.Message, user *users.User) error {
+func (b *TesterBot) handleSticker(message *tgbotapi.Message, user *users.User) error {
 	chatID := user.ID
 	b.PullSticker(message.Sticker.FileID, chatID, false, 0)
 	return nil
 }
 
-func (b *Bot) handleRegimeNo(message *tgbotapi.Message, user *users.User) {
+func (b *TesterBot) handleRegimeNo(message *tgbotapi.Message, user *users.User) {
 	chatID := user.ID
 	user.Regime = 0
 	user.PollRun = -1
@@ -159,26 +161,26 @@ func (b *Bot) handleRegimeNo(message *tgbotapi.Message, user *users.User) {
 	b.PullText("Тестирование остановлено, результат не сохранен. ", chatID, 0, tgbotapi.ReplyKeyboardRemove{RemoveKeyboard: true})
 }
 
-func (b *Bot) handleRegimeYes(message *tgbotapi.Message, user *users.User) {
+func (b *TesterBot) handleRegimeYes(message *tgbotapi.Message, user *users.User) {
 	chatID := user.ID
 	user.Regime = 0
 	b.PullText("Тестирование продолжается... ", chatID, 0, tgbotapi.ReplyKeyboardRemove{RemoveKeyboard: true})
 }
 
-func (b *Bot) handleText(message *tgbotapi.Message, user *users.User) {
+func (b *TesterBot) handleText(message *tgbotapi.Message, user *users.User) {
 	chatID := user.ID
 	b.PullText(message.Text, chatID, message.MessageID)
 }
 
 /* На удаление
-func (b *Bot) handlePoll(message *tgbotapi.Poll, chatID int) {
+func (b *bot) handlePoll(message *tgbotapi.Poll, chatID int) {
 	b.oprosRun++
 	b.stat++
 	a := task.GenerateRandomQuestion(b.oprosRun/3, b.oprosRun%3)
 	b.PullPoll(a.Problem, chatID, 0, false, a.Variants...)
 }*/
 
-func (b *Bot) handlePollAnswer(ans *tgbotapi.PollAnswer, user *users.User) error {
+func (b *TesterBot) handlePollAnswer(ans *tgbotapi.PollAnswer, user *users.User) error {
 	chatID := user.ID
 	if user.PollRun != -1 {
 		checkTask, checkChapter, checkCorrect := users.GetTask(b.DB, ans.PollID, chatID)
@@ -199,7 +201,7 @@ func (b *Bot) handlePollAnswer(ans *tgbotapi.PollAnswer, user *users.User) error
 	return nil
 }
 
-func (b *Bot) iterateTest(user *users.User) {
+func (b *TesterBot) iterateTest(user *users.User) {
 	chatID := user.ID
 	if user.PollRun < len(b.Chapters)*b.iterations {
 		user.PollRun++
@@ -235,7 +237,7 @@ func outputSortedByKey(user *users.User) string {
 	return s
 }
 
-func (b *Bot) getResult(user *users.User) {
+func (b *TesterBot) getResult(user *users.User) {
 	b.TimerStop(user)
 	chatID := user.ID
 	if user.PollRun > 0 {
@@ -248,16 +250,16 @@ func (b *Bot) getResult(user *users.User) {
 	user.PollRun = -1
 }
 
-func (b *Bot) handleUnknown() error {
+func (b *TesterBot) handleUnknown() error {
 	return errors.New("unknown item was received")
 }
 
-func (b *Bot) showTextbook(user *users.User) {
+func (b *TesterBot) showTextbook(user *users.User) {
 	chatID := user.ID
 	keyboard := getKeyboardChapters()
-	msg := tgbotapi.NewMessage(int64(chatID), "Выберите главу: ")
+	msg := tgbotapi.NewMessage(chatID, "Выберите главу: ")
 	msg.ReplyMarkup = keyboard
-	go b.Pull(chatID, *NewChattable(msg))
+	go b.Pull(chatID, *bot.NewChattable(msg))
 }
 
 func getFiles(directory string, isDir bool) []string {
@@ -312,15 +314,15 @@ func getFilename(chapter int, paragraph int) (string, string) {
 	return "textbook/" + files1[chapter] + "/" + files2[paragraph], files2[paragraph]
 }
 
-func (b *Bot) showTextbookFiles(user *users.User, chapterID int) {
+func (b *TesterBot) showTextbookFiles(user *users.User, chapterID int) {
 	chatID := user.ID
 	keyboard := getKeyboardParagraphs(chapterID)
-	msg := tgbotapi.NewMessage(int64(chatID), "Выберите пункт главы: ")
+	msg := tgbotapi.NewMessage(chatID, "Выберите пункт главы: ")
 	msg.ReplyMarkup = keyboard
-	go b.Pull(chatID, *NewChattable(msg))
+	go b.Pull(chatID, *bot.NewChattable(msg))
 }
 
-func (b *Bot) handleCallbackQuery(callback *tgbotapi.CallbackQuery, user *users.User) error {
+func (b *TesterBot) handleCallbackQuery(callback *tgbotapi.CallbackQuery, user *users.User) error {
 	chatID := user.ID
 	switch {
 	case strings.HasPrefix(callback.Data, "cF"):

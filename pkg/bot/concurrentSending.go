@@ -7,24 +7,24 @@ import (
 	"study-bot/pkg/users"
 )
 
-func (b *Bot) Send(chatID int64) (err error) {
-	b.sendQueue.QueueDec(chatID)
-	item, ok := b.sendQueue.Load(chatID)
+func (b *BotGeneral) Send(chatID int64) (err error) {
+	b.SendQueue.QueueDec(chatID)
+	item, ok := b.SendQueue.Load(chatID)
 	if !ok {
 		return fmt.Errorf("reading error")
 	}
 	data := <-item.data
-	if item.queue > 5 {
+	if item.Queue > 5 {
 		data = *NewChattable(tgbotapi.NewMessage(int64(chatID), "Не флуди!"))
 	}
 	log.PrintSent(&data.data)
 	switch data.data.(type) {
 	case tgbotapi.MessageConfig, tgbotapi.StickerConfig, tgbotapi.PhotoConfig, tgbotapi.DocumentConfig:
-		_, err = b.bot.Send(data.data)
+		_, err = b.Bot.Send(data.data)
 	case tgbotapi.CallbackConfig, tgbotapi.DeleteMessageConfig:
-		_, err = b.bot.Request(data.data)
+		_, err = b.Bot.Request(data.data)
 	case tgbotapi.SendPollConfig:
-		msg, err := b.bot.Send(data.data.(tgbotapi.SendPollConfig))
+		msg, err := b.Bot.Send(data.data.(tgbotapi.SendPollConfig))
 		users.InputNote(b.DB, *users.NewNote(chatID, msg.Poll.ID, data.option.taskID, 0, data.option.correct))
 		return err
 	default:
@@ -33,18 +33,18 @@ func (b *Bot) Send(chatID int64) (err error) {
 	return err
 }
 
-func (b *Bot) Pull(chatID int64, c Chattable) {
-	if v, ok := b.sendQueue.Load(chatID); ok {
-		if v.queue > 7 {
+func (b *BotGeneral) Pull(chatID int64, c Chattable) {
+	if v, ok := b.SendQueue.Load(chatID); ok {
+		if v.Queue > 7 {
 			return
 		}
-		b.sendQueue.QueueInc(chatID)
+		b.SendQueue.QueueInc(chatID)
 		v.data <- c
-		b.sendQueue.StoreData(chatID, v.data)
+		b.SendQueue.StoreData(chatID, v.data)
 	} else {
 		item := *NewItemToSend()
 		item.data <- c
-		item.queue++
-		b.sendQueue.Store(chatID, item)
+		item.Queue++
+		b.SendQueue.Store(chatID, item)
 	}
 }

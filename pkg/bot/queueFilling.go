@@ -9,7 +9,7 @@ import (
 
 // для функций, которые будут заполнять очередь сообщениями в формате Chattable
 
-func (b *Bot) PullText(text string, chatID int64, reply int, args ...any) {
+func (b *BotGeneral) PullText(text string, chatID int64, reply int, args ...any) {
 	msg := tgbotapi.NewMessage(chatID, text)
 	if reply > 0 {
 		msg.ReplyToMessageID = reply
@@ -27,7 +27,7 @@ func (b *Bot) PullText(text string, chatID int64, reply int, args ...any) {
 	go b.Pull(chatID, *NewChattable(msg))
 }
 
-func (b *Bot) PullSticker(name string, chatID int64, byFile bool, reply int) error {
+func (b *BotGeneral) PullSticker(name string, chatID int64, byFile bool, reply int) error {
 	var stickerID tgbotapi.RequestFileData
 	if byFile {
 		photoBytes, err := os.ReadFile(name)
@@ -61,7 +61,7 @@ func cutString(text string, length int) string {
 	return text
 }
 
-func (b *Bot) PullPoll(id int, question string, chatID int64, reply int, isMultiple bool, correct int, ans ...string) error {
+func (b *BotGeneral) PullPoll(id int, question string, chatID int64, reply int, isMultiple bool, correct int, ans ...string) error {
 	for i := range ans {
 		ans[i] = cutString(ans[i], 100)
 	}
@@ -76,13 +76,13 @@ func (b *Bot) PullPoll(id int, question string, chatID int64, reply int, isMulti
 	return nil
 }
 
-func (b *Bot) PullDeleteMessage(messageID int, chatID int64) error {
+func (b *BotGeneral) PullDeleteMessage(messageID int, chatID int64) error {
 	msg := tgbotapi.NewDeleteMessage(chatID, messageID)
 	go b.Pull(chatID, *NewChattable(msg))
 	return nil
 }
 
-func (b *Bot) PullPicture(filename string, chatID int64, reply int) error {
+func (b *BotGeneral) PullPicture(filename string, chatID int64, reply int) error {
 	photoBytes, err := os.ReadFile(filename)
 	if err != nil {
 		log.Println(err)
@@ -99,7 +99,7 @@ func (b *Bot) PullPicture(filename string, chatID int64, reply int) error {
 	return nil
 }
 
-func (b *Bot) PullFile(filename string, chatID int64, reply int, newFilename string) error {
+func (b *BotGeneral) PullFile(filename string, chatID int64, reply int, newFilename string) error {
 	file, err := os.ReadFile(filename)
 	if err != nil {
 		log.Println(err)
@@ -118,9 +118,9 @@ func (b *Bot) PullFile(filename string, chatID int64, reply int, newFilename str
 
 // Отправляют апдейт сразу, не ожидая очереди
 
-func (b *Bot) SendCommands(cmd ...tgbotapi.BotCommand) {
+func (b *BotGeneral) SendCommands(cmd ...tgbotapi.BotCommand) {
 	msg := tgbotapi.NewSetMyCommands(cmd...)
-	_, err := b.bot.Send(msg)
+	_, err := b.Bot.Send(msg)
 	if err != nil {
 		return
 	}

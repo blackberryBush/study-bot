@@ -1,4 +1,4 @@
-package bot
+package botTester
 
 import (
 	"fmt"
@@ -17,7 +17,7 @@ func getTime() time.Duration {
 	return time.Duration(time1)
 }
 
-func (b *Bot) TimerRun(user *users.User) {
+func (b *TesterBot) TimerRun(user *users.User) {
 	duration := time.Minute * getTime()
 	chatID := user.ID
 	b.PullText(fmt.Sprintf("Внимание! На тестирование отведено %v минут", duration.Minutes()), chatID, 0)
@@ -30,7 +30,7 @@ func (b *Bot) TimerRun(user *users.User) {
 	delete(b.timers, chatID)
 }
 
-func (b *Bot) TimerStop(user *users.User) {
+func (b *TesterBot) TimerStop(user *users.User) {
 	if b.timers[user.ID] != nil {
 		b.timers[user.ID].Stop()
 		delete(b.timers, user.ID)

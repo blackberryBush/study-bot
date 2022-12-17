@@ -27,13 +27,13 @@ func NewChattable(data tgbotapi.Chattable, options ...int) *Chattable {
 }
 
 type ItemToSend struct {
-	queue int
+	Queue int
 	data  chan Chattable
 }
 
 func NewItemToSend() *ItemToSend {
 	return &ItemToSend{
-		queue: 0,
+		Queue: 0,
 		data:  make(chan Chattable, 1),
 	}
 }
@@ -95,7 +95,7 @@ func (c *KitToSend) QueueInc(key int64) {
 	c.mx.Lock()
 	defer c.mx.Unlock()
 	if item, ok := c.m[key]; ok {
-		item.queue++
+		item.Queue++
 		c.m[key] = item
 	}
 }
@@ -104,7 +104,7 @@ func (c *KitToSend) QueueDec(key int64) {
 	c.mx.Lock()
 	defer c.mx.Unlock()
 	if item, ok := c.m[key]; ok {
-		item.queue--
+		item.Queue--
 		c.m[key] = item
 	}
 }

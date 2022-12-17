@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/viper"
 	"log"
 	"os"
-	"study-bot/pkg/bot"
+	bt "study-bot/pkg/botTester"
 	"study-bot/pkg/users"
 )
 
@@ -44,7 +44,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	b := bot.NewBot(botAPI, db)
+	b := bt.NewTesterBot(botAPI, db)
 	users.CsvToPostgres("tasks.csv", b.DB)
 	b.Chapters = users.CountChapters(b.DB)
 	users.CreateUsers(b.DB)
