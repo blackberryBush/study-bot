@@ -8,6 +8,10 @@ import (
 	"time"
 )
 
+type TesterBot struct {
+	Bot
+}
+
 type Bot struct {
 	bot        *tgbotapi.BotAPI
 	sendQueue  *KitToSend

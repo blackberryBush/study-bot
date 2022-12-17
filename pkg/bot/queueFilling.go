@@ -65,6 +65,7 @@ func (b *Bot) PullPoll(id int, question string, chatID int64, reply int, isMulti
 	for i := range ans {
 		ans[i] = cutString(ans[i], 100)
 	}
+	question = cutString(question, 255)
 	msg := tgbotapi.NewPoll(chatID, question, ans...)
 	if reply > 0 {
 		msg.ReplyToMessageID = reply
