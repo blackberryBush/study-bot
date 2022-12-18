@@ -118,12 +118,25 @@ func (b *BotGeneral) PullFile(filename string, chatID int64, reply int, newFilen
 	return nil
 }
 
+func (b *BotGeneral) PullFileBytes(file []byte, chatID int64, reply int, newFilename string) error {
+	fileBytes := tgbotapi.FileBytes{
+		Name:  newFilename,
+		Bytes: file,
+	}
+	msg := tgbotapi.NewDocument(chatID, fileBytes)
+	if reply > 0 {
+		msg.ReplyToMessageID = reply
+	}
+	go b.Pull(chatID, *NewChattable(msg))
+	return nil
+}
+
 // Отправляют апдейт сразу, не ожидая очереди
 
 func (b *BotGeneral) SendCommands(cmd ...tgbotapi.BotCommand) {
 	msg := tgbotapi.NewSetMyCommands(cmd...)
 	_, err := b.Bot.Send(msg)
 	if err != nil {
-		log.Println(err)
+		return
 	}
 }

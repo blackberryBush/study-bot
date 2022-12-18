@@ -2,6 +2,7 @@ package databases
 
 import (
 	"database/sql"
+	"fmt"
 	_ "github.com/lib/pq"
 	"log"
 )
@@ -83,6 +84,23 @@ func ClearUser(db *sql.DB, userID int64) {
 	}
 }
 
+func GetUserNotes(db *sql.DB, userID int64) string {
+	rows, err := db.Query("SELECT taskID, answer, correct FROM notes WHERE userID = $1", userID)
+	if err != nil || rows == nil {
+		return ""
+	}
+	result := ""
+	for rows.Next() {
+		var taskID, answer, correct int
+		err := rows.Scan(&taskID, &answer, &correct)
+		if err != nil || answer == 0 {
+			continue
+		}
+		result += fmt.Sprintf("User:	%v, taskID:	%v, answer:	%v, correct:	%v\n", userID, taskID, answer, correct)
+	}
+	return result
+}
+
 func GetLastStats(db *sql.DB, user *User) {
 	rows, err := db.Query("SELECT taskID, answer, correct FROM notes WHERE userID = $1", user.ID)
 	if err != nil || rows == nil {
@@ -111,4 +129,22 @@ func GetLastStats(db *sql.DB, user *User) {
 			user.Worst[chapter]++
 		}
 	}
+}
+
+func GetAllNotes(db *sql.DB) string {
+	rows, err := db.Query("SELECT * FROM notes")
+	if err != nil || rows == nil {
+		return ""
+	}
+	result := "userID\t| pollID\t| taskID\t| answer\t| correct\n"
+	for rows.Next() {
+		var userID, taskID, answer, correct int64
+		pollID := ""
+		err := rows.Scan(&userID, &pollID, &taskID, &answer, &correct)
+		if err != nil || answer == 0 {
+			continue
+		}
+		result += fmt.Sprintf("%v\t| %v\t| %v\t| %v\t| %v\n", userID, pollID, taskID, answer, correct)
+	}
+	return result
 }

@@ -207,3 +207,21 @@ func (q *Question) MixQuestion() {
 		})
 
 }
+
+func GetAllTasks(db *sql.DB) string {
+	rows, err := db.Query("SELECT * FROM tasks")
+	if err != nil || rows == nil {
+		return ""
+	}
+	result := "chapter\t| ID\t| question\t| options1\t| options2\t| options3\t| options4\t| correct\t| picture\n"
+	for rows.Next() {
+		var chapter, ID, correct, picture int64
+		var question, option1, option2, option3, option4 string
+		err := rows.Scan(&chapter, &ID, &question, &option1, &option2, &option3, &option4, &correct, &picture)
+		if err != nil || chapter == 0 {
+			continue
+		}
+		result += fmt.Sprintf("%v\t| %v\t| %v\t| %v\t| %v\t| %v\t| %v\t| %v\t| %v\n", chapter, ID, question, option1, option2, option3, option4, correct, picture)
+	}
+	return result
+}

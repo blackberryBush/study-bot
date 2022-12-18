@@ -1,7 +1,6 @@
 package botControl
 
 import (
-	"errors"
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/spf13/viper"
@@ -65,7 +64,7 @@ func (b *ControlBot) handleMessageNotAdmin(message *tgbotapi.Message, chatID int
 	b.PullText("Вы не админ! (Ваш ID "+strconv.FormatInt(chatID, 10)+")", chatID, message.MessageID)
 }
 
-func (b *ControlBot) handleCommand(message *tgbotapi.Message, chatID int64) error {
+func (b *ControlBot) handleCommand(message *tgbotapi.Message, chatID int64) {
 	switch message.CommandWithAt() {
 	case "start":
 		b.PullText("Го чё-то вступительное сюда напишем...", chatID, message.MessageID)
@@ -73,7 +72,6 @@ func (b *ControlBot) handleCommand(message *tgbotapi.Message, chatID int64) erro
 		user := message.CommandArguments()
 		if user == "" {
 			b.PullText("Не введён ID пользователя", chatID, message.MessageID)
-			return nil
 		}
 		if ID, err := strconv.ParseInt(user, 10, 0); err == nil {
 			userN, err := databases.GetUser(b.DB, ID)
@@ -92,7 +90,6 @@ func (b *ControlBot) handleCommand(message *tgbotapi.Message, chatID int64) erro
 		user := message.CommandArguments()
 		if user == "" {
 			b.PullText("Не введён ID пользователя", chatID, message.MessageID)
-			return nil
 		}
 		if ID, err := strconv.ParseInt(user, 10, 0); err == nil {
 			_, err := databases.GetUser(b.DB, ID)
@@ -107,13 +104,12 @@ func (b *ControlBot) handleCommand(message *tgbotapi.Message, chatID int64) erro
 		user := message.CommandArguments()
 		if user == "" {
 			b.PullText("Не введён ID пользователя", chatID, message.MessageID)
-			return nil
 		}
 		if ID, err := strconv.ParseInt(user, 10, 0); err == nil {
 			_, err := databases.GetUser(b.DB, ID)
 			if err == nil {
-				//databases.ClearUser(b.DB, ID)
-				b.PullText("Тесты пользователя:", chatID, message.MessageID)
+				s := databases.GetUserNotes(b.DB, ID)
+				b.PullText("Тесты пользователя:\n"+s, chatID, message.MessageID)
 			} else {
 				b.PullText("Пользователь не найден", chatID, message.MessageID)
 			}
@@ -122,7 +118,6 @@ func (b *ControlBot) handleCommand(message *tgbotapi.Message, chatID int64) erro
 		task := message.CommandArguments()
 		if task == "" {
 			b.PullText("Не введён ID вопроса", chatID, message.MessageID)
-			return nil
 		}
 		if questionID, err := strconv.ParseInt(task, 10, 0); err == nil {
 			currentTask, err := databases.GetQuestion(b.DB, int(questionID))
@@ -136,14 +131,17 @@ func (b *ControlBot) handleCommand(message *tgbotapi.Message, chatID int64) erro
 			b.PullPoll(currentTask.Number, currentTask.Problem, chatID, 0, false, currentTask.Correct, currentTask.Variants...)
 		}
 	case "getdb":
-		// сохранить все в файлы
-		// b.PullFile("base.txt", chatID, message.MessageID, "base.txt")
+		s := databases.GetAllNotes(b.DB)
+		b.PullFileBytes([]byte(s), chatID, message.MessageID, "notes.txt")
+		s = databases.GetAllTasks(b.DB)
+		b.PullFileBytes([]byte(s), chatID, message.MessageID, "tasks.txt")
+		s = databases.GetAllUsers(b.DB)
+		b.PullFileBytes([]byte(s), chatID, message.MessageID, "users.txt")
 	case "update":
 		b.PullText("Инструкция: текст", chatID, message.MessageID)
 	default:
 		b.handleUnknown()
 	}
-	return nil
 }
 
 func (b *ControlBot) getResult(user *databases.User, chatID int64) {
@@ -156,6 +154,6 @@ func (b *ControlBot) getResult(user *databases.User, chatID int64) {
 	}
 }
 
-func (b *ControlBot) handleUnknown() error {
-	return errors.New("unknown item was received")
+func (b *ControlBot) handleUnknown() {
+	// =)
 }

@@ -109,3 +109,21 @@ func UpdateUser(db *sql.DB, user User) {
 		log.Println(err)
 	}
 }
+
+func GetAllUsers(db *sql.DB) string {
+	rows, err := db.Query("SELECT * FROM users")
+	if err != nil || rows == nil {
+		return ""
+	}
+	result := "userID\t| pollID\t| taskID\t| answer\t| correct\n"
+	for rows.Next() {
+		var userID, pollRun, corrects, regime int64
+		var worst, chapters string
+		err := rows.Scan(&userID, &pollRun, &corrects, &regime, &worst, &chapters)
+		if err != nil || userID == 0 {
+			continue
+		}
+		result += fmt.Sprintf("%v\t| %v\t| %v\t| %v\t| %v\t| %v\n", userID, pollRun, corrects, regime, worst, chapters)
+	}
+	return result
+}
