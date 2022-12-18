@@ -3,7 +3,7 @@ package botTester
 import (
 	"fmt"
 	"github.com/spf13/viper"
-	"study-bot/pkg/users"
+	"study-bot/pkg/databases"
 	"time"
 )
 
@@ -17,7 +17,7 @@ func getTime() time.Duration {
 	return time.Duration(time1)
 }
 
-func (b *TesterBot) TimerRun(user *users.User) {
+func (b *TesterBot) TimerRun(user *databases.User) {
 	duration := time.Minute * getTime()
 	chatID := user.ID
 	b.PullText(fmt.Sprintf("Внимание! На тестирование отведено %v минут", duration.Minutes()), chatID, 0)
@@ -26,11 +26,11 @@ func (b *TesterBot) TimerRun(user *users.User) {
 	user.PollRun--
 	b.PullText("Тестирование остановлено в связи с истечением времени.", chatID, 0)
 	b.getResult(user)
-	users.UpdateUser(b.DB, *user)
+	databases.UpdateUser(b.DB, *user)
 	delete(b.timers, chatID)
 }
 
-func (b *TesterBot) TimerStop(user *users.User) {
+func (b *TesterBot) TimerStop(user *databases.User) {
 	if b.timers[user.ID] != nil {
 		b.timers[user.ID].Stop()
 		delete(b.timers, user.ID)

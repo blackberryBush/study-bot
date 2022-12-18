@@ -1,4 +1,4 @@
-package users
+package databases
 
 import (
 	"database/sql"
@@ -42,6 +42,14 @@ func CreateUsers(db *sql.DB) {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func ClearUsers(db *sql.DB) {
+	_, err := db.Exec("DROP TABLE IF EXISTS users")
+	if err != nil {
+		log.Fatal(err)
+	}
+	CreateUsers(db)
 }
 
 func InsertUser(db *sql.DB, user User) {

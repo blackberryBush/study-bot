@@ -1,4 +1,4 @@
-package botTester
+package botControl
 
 import (
 	"database/sql"
@@ -9,22 +9,22 @@ import (
 	"time"
 )
 
-type TesterBot struct {
+type ControlBot struct {
 	bb.BotGeneral
 	Chapters   []int
 	iterations int
 	timers     map[int64]*time.Timer
 }
 
-func NewTesterBot(bot *tgbotapi.BotAPI, dbTasks *sql.DB) *TesterBot {
-	var _ bb.BotInterface = &TesterBot{}
+func NewControlBot(bot *tgbotapi.BotAPI, dbTasks *sql.DB) *ControlBot {
+	var _ bb.BotInterface = &ControlBot{}
 	viper.SetConfigName("options")
 	viper.AddConfigPath(".")
 	iterations := 10
 	if err := viper.ReadInConfig(); err == nil {
 		iterations = viper.GetInt("options.iterations")
 	}
-	return &TesterBot{
+	return &ControlBot{
 		BotGeneral: *bb.NewBot(bot, dbTasks),
 		Chapters:   nil,
 		iterations: iterations,
@@ -32,21 +32,33 @@ func NewTesterBot(bot *tgbotapi.BotAPI, dbTasks *sql.DB) *TesterBot {
 	}
 }
 
-func (b *TesterBot) Run() {
+func (b *ControlBot) Run() {
 	log.Printf("Authorized on account %s", b.Bot.Self.UserName)
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 	updates := b.Bot.GetUpdatesChan(u)
 	b.Bot.Self.CanJoinGroups = false
 	b.SendCommands(tgbotapi.BotCommand{
-		Command:     "/test",
-		Description: "Запуск тестирования",
+		Command:     "/user",
+		Description: "Получить информацию о тесте пользователя",
 	}, tgbotapi.BotCommand{
-		Command:     "/getstats",
-		Description: "Вывести текущий результат",
+		Command:     "/clearuser",
+		Description: "Удалить информацию о пользователе",
 	}, tgbotapi.BotCommand{
-		Command:     "/study",
-		Description: "Открыть учебник",
+		Command:     "/clear",
+		Description: "Очистить базу результатов тестов",
+	}, tgbotapi.BotCommand{
+		Command:     "/usertasks",
+		Description: "Получить информацию о вопросах для пользователя",
+	}, tgbotapi.BotCommand{
+		Command:     "/task",
+		Description: "Вывести вопрос по его номеру",
+	}, tgbotapi.BotCommand{
+		Command:     "/getdb",
+		Description: "Получить полную базу",
+	}, tgbotapi.BotCommand{
+		Command:     "/update",
+		Description: "Инструкция по обновлению базы вопросов и прочим настройкам",
 	})
 	for update := range updates {
 		b.HandleUpdate(&update)
@@ -61,7 +73,7 @@ func lastSend(chatID int64, messageTimes map[int64]time.Time) bool {
 	return true
 }
 
-func (b *TesterBot) TimeStart() {
+func (b *ControlBot) TimeStart() {
 	messageTimes := make(map[int64]time.Time)
 	timer := time.NewTicker(time.Second / 30)
 	defer timer.Stop()

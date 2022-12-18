@@ -1,4 +1,4 @@
-package users
+package databases
 
 import (
 	"crypto/rand"

@@ -9,7 +9,7 @@ import (
 	"log"
 	"os"
 	bt "study-bot/pkg/botTester"
-	"study-bot/pkg/users"
+	"study-bot/pkg/databases"
 )
 
 func getToken() string {
@@ -31,7 +31,6 @@ func NewPostgresDB() (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return db, nil
 }
 
@@ -45,10 +44,7 @@ func main() {
 		log.Fatal(err)
 	}
 	b := bt.NewTesterBot(botAPI, db)
-	users.CsvToPostgres("tasks.csv", b.DB)
-	b.Chapters = users.CountChapters(b.DB)
-	users.CreateUsers(b.DB)
-	users.CreateNotes(b.DB)
+	b.Chapters = databases.CountChapters(b.DB)
 	//
 	//Start timer to send messages&callbacks
 	go b.TimeStart()

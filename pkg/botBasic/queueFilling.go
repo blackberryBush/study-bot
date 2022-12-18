@@ -1,4 +1,4 @@
-package bot
+package botBasic
 
 import (
 	"errors"
@@ -8,6 +8,8 @@ import (
 )
 
 // для функций, которые будут заполнять очередь сообщениями в формате Chattable
+
+// args для keyboard
 
 func (b *BotGeneral) PullText(text string, chatID int64, reply int, args ...any) {
 	msg := tgbotapi.NewMessage(chatID, text)
@@ -122,6 +124,6 @@ func (b *BotGeneral) SendCommands(cmd ...tgbotapi.BotCommand) {
 	msg := tgbotapi.NewSetMyCommands(cmd...)
 	_, err := b.Bot.Send(msg)
 	if err != nil {
-		return
+		log.Println(err)
 	}
 }

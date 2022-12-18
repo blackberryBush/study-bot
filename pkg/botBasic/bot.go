@@ -1,4 +1,4 @@
-package bot
+package botBasic
 
 import (
 	"database/sql"

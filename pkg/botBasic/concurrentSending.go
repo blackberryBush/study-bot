@@ -1,10 +1,10 @@
-package bot
+package botBasic
 
 import (
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"study-bot/pkg/databases"
 	"study-bot/pkg/log"
-	"study-bot/pkg/users"
 )
 
 func (b *BotGeneral) Send(chatID int64) (err error) {
@@ -25,7 +25,7 @@ func (b *BotGeneral) Send(chatID int64) (err error) {
 		_, err = b.Bot.Request(data.data)
 	case tgbotapi.SendPollConfig:
 		msg, err := b.Bot.Send(data.data.(tgbotapi.SendPollConfig))
-		users.InputNote(b.DB, *users.NewNote(chatID, msg.Poll.ID, data.option.taskID, 0, data.option.correct))
+		databases.InputNote(b.DB, *databases.NewNote(chatID, msg.Poll.ID, data.option.taskID, 0, data.option.correct))
 		return err
 	default:
 		err = fmt.Errorf("undefined type")

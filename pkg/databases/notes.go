@@ -1,4 +1,4 @@
-package users
+package databases
 
 import (
 	"database/sql"
@@ -34,6 +34,14 @@ func CreateNotes(db *sql.DB) {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func ClearNotes(db *sql.DB) {
+	_, err := db.Exec("DROP TABLE IF EXISTS notes")
+	if err != nil {
+		log.Fatal(err)
+	}
+	CreateNotes(db)
 }
 
 func InputNote(db *sql.DB, note Note) {
