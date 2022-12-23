@@ -1,7 +1,6 @@
 package botTester
 
 import (
-	"errors"
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"os"
@@ -15,7 +14,6 @@ import (
 
 const (
 	messageUndefined = -1
-	//updatePoll       = iota
 	updatePollAnswer = iota
 	messageCommand
 	messageSticker
@@ -26,9 +24,6 @@ const (
 )
 
 func (b *TesterBot) getUpdateType(update *tgbotapi.Update) (int, int64, databases.User, error) {
-	/*if update.Poll != nil {
-		return updatePoll, 0
-	}*/
 	if update.PollAnswer != nil {
 		chatID := update.PollAnswer.User.ID
 		user, err := databases.GetUser(b.DB, chatID)
@@ -83,8 +78,6 @@ func (b *TesterBot) HandleUpdate(update *tgbotapi.Update) {
 		}
 	}
 	switch updateType {
-	/*case updatePoll:
-	b.handlePoll(update.Poll, chatID)*/
 	case updatePollAnswer:
 		b.handlePollAnswer(update.PollAnswer, &currentUser)
 	case messageCommand:
@@ -94,9 +87,9 @@ func (b *TesterBot) HandleUpdate(update *tgbotapi.Update) {
 	case messageText:
 		b.handleText(update.Message, &currentUser)
 	case messageRegimeNo:
-		b.handleRegimeNo(update.Message, &currentUser)
+		b.handleRegimeNo(&currentUser)
 	case messageRegimeYes:
-		b.handleRegimeYes(update.Message, &currentUser)
+		b.handleRegimeYes(&currentUser)
 	case callbackQuery:
 		b.handleCallbackQuery(update.CallbackQuery, &currentUser)
 	default:
@@ -105,14 +98,20 @@ func (b *TesterBot) HandleUpdate(update *tgbotapi.Update) {
 	databases.UpdateUser(b.DB, currentUser)
 }
 
-func (b *TesterBot) handleCommand(message *tgbotapi.Message, user *databases.User) error {
+func (b *TesterBot) handleCommand(message *tgbotapi.Message, user *databases.User) {
 	chatID := user.ID
 	switch message.Command() {
 	case "start":
-		b.TimerStop(user)
 		databases.ClearUser(b.DB, chatID)
-		user.PollRun = -1
-		user.Corrects = 0
+		b.PullText("Основные команды бота:\n"+
+			"/test - запуск тестирования\n"+
+			"/getstats - получить результаты тестирования\n"+
+			"/study - открыть учебник\n\n"+
+			"Основные правила тестирования:\n"+
+			"- тестирование ограничено по времени\n"+
+			"- вариант ответа всегда один\n"+
+			"- между вопросами нельзя переключаться и изменять уже отправленный ответ\n"+
+			"- при каждом новом запуске /test, старые результаты стираются", chatID, 0)
 	case "test":
 		databases.ClearUser(b.DB, chatID)
 		go b.TimerRun(user)
@@ -142,16 +141,14 @@ func (b *TesterBot) handleCommand(message *tgbotapi.Message, user *databases.Use
 	default:
 		b.handleUnknown()
 	}
-	return nil
 }
 
-func (b *TesterBot) handleSticker(message *tgbotapi.Message, user *databases.User) error {
+func (b *TesterBot) handleSticker(message *tgbotapi.Message, user *databases.User) {
 	chatID := user.ID
 	b.PullSticker(message.Sticker.FileID, chatID, false, 0)
-	return nil
 }
 
-func (b *TesterBot) handleRegimeNo(message *tgbotapi.Message, user *databases.User) {
+func (b *TesterBot) handleRegimeNo(user *databases.User) {
 	chatID := user.ID
 	user.Regime = 0
 	user.PollRun = -1
@@ -160,7 +157,7 @@ func (b *TesterBot) handleRegimeNo(message *tgbotapi.Message, user *databases.Us
 	b.PullText("Тестирование остановлено, результат не сохранен. ", chatID, 0, tgbotapi.ReplyKeyboardRemove{RemoveKeyboard: true})
 }
 
-func (b *TesterBot) handleRegimeYes(message *tgbotapi.Message, user *databases.User) {
+func (b *TesterBot) handleRegimeYes(user *databases.User) {
 	chatID := user.ID
 	user.Regime = 0
 	b.PullText("Тестирование продолжается... ", chatID, 0, tgbotapi.ReplyKeyboardRemove{RemoveKeyboard: true})
@@ -171,20 +168,12 @@ func (b *TesterBot) handleText(message *tgbotapi.Message, user *databases.User) 
 	b.PullText(message.Text, chatID, message.MessageID)
 }
 
-/* На удаление
-func (b *botBasic) handlePoll(message *tgbotapi.Poll, chatID int) {
-	b.oprosRun++
-	b.stat++
-	a := task.GenerateRandomQuestion(b.oprosRun/3, b.oprosRun%3)
-	b.PullPoll(a.Problem, chatID, 0, false, a.Variants...)
-}*/
-
-func (b *TesterBot) handlePollAnswer(ans *tgbotapi.PollAnswer, user *databases.User) error {
+func (b *TesterBot) handlePollAnswer(ans *tgbotapi.PollAnswer, user *databases.User) {
 	chatID := user.ID
 	if user.PollRun != -1 {
 		checkTask, checkChapter, checkCorrect := databases.GetTask(b.DB, ans.PollID, chatID)
 		if checkTask <= 0 {
-			return fmt.Errorf("check error")
+			return
 		}
 		if len(ans.OptionIDs) == 1 {
 			databases.UpdateAnswer(b.DB, chatID, ans.PollID, ans.OptionIDs[0]+1)
@@ -197,7 +186,6 @@ func (b *TesterBot) handlePollAnswer(ans *tgbotapi.PollAnswer, user *databases.U
 		}
 		b.iterateTest(user)
 	}
-	return nil
 }
 
 func (b *TesterBot) iterateTest(user *databases.User) {
@@ -249,8 +237,8 @@ func (b *TesterBot) getResult(user *databases.User) {
 	user.PollRun = -1
 }
 
-func (b *TesterBot) handleUnknown() error {
-	return errors.New("unknown item was received")
+func (b *TesterBot) handleUnknown() {
+	return
 }
 
 func (b *TesterBot) showTextbook(user *databases.User) {
@@ -321,7 +309,7 @@ func (b *TesterBot) showTextbookFiles(user *databases.User, chapterID int) {
 	go b.Pull(chatID, *botBasic.NewChattable(msg))
 }
 
-func (b *TesterBot) handleCallbackQuery(callback *tgbotapi.CallbackQuery, user *databases.User) error {
+func (b *TesterBot) handleCallbackQuery(callback *tgbotapi.CallbackQuery, user *databases.User) {
 	chatID := user.ID
 	switch {
 	case strings.HasPrefix(callback.Data, "cF"):
@@ -335,8 +323,5 @@ func (b *TesterBot) handleCallbackQuery(callback *tgbotapi.CallbackQuery, user *
 		_, k, _ := strings.Cut(callback.Data, "cH")
 		v, _ := strconv.Atoi(k)
 		b.showTextbookFiles(user, v)
-	default:
-		return b.handleUnknown()
 	}
-	return nil
 }

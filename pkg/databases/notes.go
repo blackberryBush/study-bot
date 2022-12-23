@@ -148,3 +148,10 @@ func GetAllNotes(db *sql.DB) string {
 	}
 	return result
 }
+
+func ChangeAnswer(db *sql.DB, userID int64, taskID int64, answer int64) {
+	_, err := db.Exec("UPDATE notes SET answer=$1 WHERE userID=$2 AND taskID=$3", answer, userID, taskID)
+	if err != nil {
+		log.Println(err)
+	}
+}

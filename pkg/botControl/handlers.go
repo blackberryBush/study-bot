@@ -5,6 +5,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/spf13/viper"
 	"strconv"
+	"strings"
 	"study-bot/pkg/botTester"
 	"study-bot/pkg/databases"
 	"study-bot/pkg/log"
@@ -67,7 +68,40 @@ func (b *ControlBot) handleMessageNotAdmin(message *tgbotapi.Message, chatID int
 func (b *ControlBot) handleCommand(message *tgbotapi.Message, chatID int64) {
 	switch message.CommandWithAt() {
 	case "start":
-		b.PullText("Го чё-то вступительное сюда напишем...", chatID, message.MessageID)
+		b.PullText("Основные команды бота:\n"+
+			"/user [id] - вывести результаты теста пользователя\n"+
+			"/clear - очистить все базы ответов\n"+
+			"/clearuser [id] - очистить результаты теста пользователя\n"+
+			"/usertasks [id] - вывести информацию о заданиях, которые получал пользователь\n"+
+			"/task [taskID] - вывести задание по его номеру в базе\n"+
+			"/getdb - получить полную базу данных в .txt файлах\n"+
+			"/update - получить инструкцию о прочим настройкам\n"+
+			"/correct [id] [taskID] [answer] - скорректировать ответ пользователя", chatID, message.MessageID)
+	case "correct":
+		arguments := message.CommandArguments()
+		if arguments == "" {
+			b.PullText("Некорректный ввод", chatID, message.MessageID)
+			return
+		}
+		args := strings.Fields(arguments)
+		if len(args) != 3 {
+			b.PullText("Некорректный ввод", chatID, message.MessageID)
+			return
+		}
+		if ID, err := strconv.ParseInt(args[0], 10, 0); err == nil {
+			if taskID, err := strconv.ParseInt(args[1], 10, 0); err == nil {
+				if answer, err := strconv.ParseInt(args[2], 10, 0); err == nil {
+					databases.ChangeAnswer(b.DB, ID, taskID, answer)
+					b.PullText("Изменения записаны.", chatID, message.MessageID)
+				} else {
+					b.PullText("Произошла ошибка", chatID, message.MessageID)
+				}
+			} else {
+				b.PullText("Произошла ошибка", chatID, message.MessageID)
+			}
+		} else {
+			b.PullText("Произошла ошибка", chatID, message.MessageID)
+		}
 	case "user":
 		user := message.CommandArguments()
 		if user == "" {
