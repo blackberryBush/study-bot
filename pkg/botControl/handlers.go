@@ -11,12 +11,16 @@ import (
 	"study-bot/pkg/log"
 )
 
-// вызов гайда для прочих обновлений
-
 const (
 	messageUndefined = -1
-	messageNotAdmin  = iota
+	updatePollAnswer = iota
 	messageCommand
+	messageSticker
+	messageText
+	messageRegimeNo
+	messageRegimeYes
+	callbackQuery
+	messageNotAdmin
 )
 
 func checkID(userID int64) bool {

@@ -21,6 +21,7 @@ const (
 	messageRegimeNo
 	messageRegimeYes
 	callbackQuery
+	messageNotAdmin
 )
 
 func (b *TesterBot) getUpdateType(update *tgbotapi.Update) (int, int64, databases.User, error) {

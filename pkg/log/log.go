@@ -8,6 +8,7 @@ import (
 )
 
 const (
+	messageUndefined = -1
 	updatePollAnswer = iota
 	messageCommand
 	messageSticker
