@@ -101,13 +101,13 @@ func (b *TesterBot) HandleUpdate(update *tgbotapi.Update) {
 
 func (b *TesterBot) handleCommand(message *tgbotapi.Message, user *databases.User) {
 	chatID := user.ID
-	switch message.Command() {
+	switch message.CommandWithAt() {
 	case "start":
 		databases.ClearUser(b.DB, chatID)
 		b.PullText("Основные команды бота:\n"+
 			"/test - запуск тестирования\n"+
 			"/getstats - получить результаты тестирования\n"+
-			"/study - открыть учебник\n\n"+
+			"/study - открыть письменные материалы\n\n"+
 			"Основные правила тестирования:\n"+
 			"- тестирование ограничено по времени\n"+
 			"- вариант ответа всегда один\n"+
@@ -115,9 +115,15 @@ func (b *TesterBot) handleCommand(message *tgbotapi.Message, user *databases.Use
 			"- при каждом новом запуске /test, старые результаты стираются", chatID, 0)
 	case "test":
 		databases.ClearUser(b.DB, chatID)
+		args := message.CommandArguments()
+		if args == "" {
+			b.PullText("Введите: /test [Группа,ФИО] (без пробелов)\nПример: /test БКС1902,ИвановАВ", chatID, message.MessageID)
+			return
+		}
 		go b.TimerRun(user)
 		user.PollRun = 0
 		user.Corrects = 0
+		user.Username = args
 		for i := range user.Worst {
 			user.Worst[i] = 0
 			user.Chapters[i] = 0
@@ -230,8 +236,8 @@ func (b *TesterBot) getResult(user *databases.User) {
 	chatID := user.ID
 	if user.PollRun > 0 {
 		s := OutputSortedByKey(user)
-		b.PullText(fmt.Sprintf("Пользователь: %v\nСтатистика: %v%%\nОтветов: %v\nПравильных: %v%s", user.ID,
-			user.Corrects*100/user.PollRun, user.PollRun, user.Corrects, s), chatID, 0)
+		b.PullText(fmt.Sprintf("ID: %v\nПользователь: %v\nСтатистика: %v%%\nОтветов: %v\nПравильных: %v%s",
+			user.ID, user.Username, user.Corrects*100/user.PollRun, user.PollRun, user.Corrects, s), chatID, 0)
 	} else {
 		b.PullText("Статистика: Нет информации о пройденных тестах.", chatID, 0)
 	}
@@ -244,85 +250,128 @@ func (b *TesterBot) handleUnknown() {
 
 func (b *TesterBot) showTextbook(user *databases.User) {
 	chatID := user.ID
-	keyboard := getKeyboardChapters()
-	msg := tgbotapi.NewMessage(chatID, "Выберите главу: ")
+	keyboard, err := getKeyboardElems("textbook/", "l")
+	if err != nil {
+		return
+	}
+	msg := tgbotapi.NewMessage(chatID, "Выберите:")
 	msg.ReplyMarkup = keyboard
 	go b.Pull(chatID, *botBasic.NewChattable(msg))
 }
 
-func getFiles(directory string, isDir bool) []string {
+func getFiles(directory string, isDirectory bool) ([]string, error) {
 	files, err := os.ReadDir(directory)
 	if err != nil {
 		fmt.Println(err)
 	}
 	arr := make([]string, 0)
 	for _, file := range files {
-		if file.IsDir() == isDir {
+		if file.IsDir() == isDirectory {
 			arr = append(arr, file.Name())
 		}
 	}
-	return arr
+	if len(arr) == 0 {
+		return nil, fmt.Errorf("no files error")
+	}
+	return arr, nil
 }
 
-func getKeyboardChapters() tgbotapi.InlineKeyboardMarkup {
-	files := getFiles("textbook/", true)
-	k := len(files)
-	buttons := make([][]tgbotapi.InlineKeyboardButton, k)
-	for i := 0; i < k; i++ {
-		buttons[i] = tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(
-			strings.Replace(strings.Replace(files[i], "_", " ", -1), " 0", " ", -1),
-			"cH"+strconv.Itoa(i)))
-	}
-	return tgbotapi.NewInlineKeyboardMarkup(buttons...)
-}
-
-func getKeyboardParagraphs(dirID int) tgbotapi.InlineKeyboardMarkup {
-	files1 := getFiles("textbook/", true)
-	files := getFiles("textbook/"+files1[dirID]+"/", false)
-	k := len(files)
-	if k == 0 {
-		return tgbotapi.InlineKeyboardMarkup{}
-	}
-	buttons := make([][]tgbotapi.InlineKeyboardButton, k)
-	for i := 0; i < k; i++ {
-		p, _, found := strings.Cut(strings.Replace(files[i], "_", " ", -1), ".pdf")
-		if !found {
-			p, _, _ = strings.Cut(strings.Replace(files[i], "_", " ", -1), ".doc")
+func getKeyboardElems(directory string, directoryShort string) (tgbotapi.InlineKeyboardMarkup, error) {
+	files, err := getFiles(directory, true)
+	dirShort := ""
+	if err != nil {
+		files, err = getFiles(directory, false)
+		dirShort = "f" + directoryShort
+		if err != nil {
+			return tgbotapi.InlineKeyboardMarkup{}, err
 		}
-		fmt.Println(p)
-		buttons[i] = tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(
-			p, "cF"+strconv.Itoa(dirID)+"ph"+strconv.Itoa(i)))
+	} else {
+		dirShort = directoryShort
 	}
-	return tgbotapi.NewInlineKeyboardMarkup(buttons...)
+	k := len(files)
+	buttons := make([][]tgbotapi.InlineKeyboardButton, k)
+	for i := 0; i < k; i++ {
+		p, _, found := strings.Cut(strings.Replace(strings.Replace(files[i], "_", " ", -1),
+			" 0", " ", -1), ".pdf")
+		if !found {
+			p, _, _ = strings.Cut(strings.Replace(strings.Replace(files[i], "_", " ", -1),
+				" 0", " ", -1), ".doc")
+		}
+		buttons[i] = tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(
+			p, dirShort+"no"+strconv.Itoa(i)))
+	}
+	return tgbotapi.NewInlineKeyboardMarkup(buttons...), nil
 }
 
-func getFilename(chapter int, paragraph int) (string, string) {
-	files1 := getFiles("textbook/", true)
-	files2 := getFiles("textbook/"+files1[chapter], false)
-	return "textbook/" + files1[chapter] + "/" + files2[paragraph], files2[paragraph]
+func getFilename(nums []int) (string, string) {
+	name1, name2 := "textbook/", ""
+	files, err := getFiles("textbook/", true)
+	if err != nil && len(nums) == 1 {
+		mFiles, _ := getFiles("textbook/", false)
+		return "textbook/" + mFiles[nums[0]], mFiles[nums[0]]
+	}
+	if len(nums) == 1 {
+		return "textbook/" + files[nums[0]] + "/", ""
+	}
+	for i := 1; i < len(nums); i++ {
+		name1 += files[nums[i-1]] + "/"
+		files, _ = getFiles(name1, true)
+		if len(files) == 0 {
+			files, _ = getFiles(name1, false)
+		}
+		name2 = files[nums[i]]
+	}
+	return name1 + name2, name2
 }
 
-func (b *TesterBot) showTextbookFiles(user *databases.User, chapterID int) {
+func (b *TesterBot) showTextbookFiles(user *databases.User, chapterIDs []int) {
 	chatID := user.ID
-	keyboard := getKeyboardParagraphs(chapterID)
-	msg := tgbotapi.NewMessage(chatID, "Выберите пункт главы: ")
+	u, _ := getFilename(chapterIDs)
+	ds := "l"
+	for _, v := range chapterIDs {
+		ds += "no" + strconv.Itoa(v)
+	}
+	keyboard, _ := getKeyboardElems(u, ds)
+	msg := tgbotapi.NewMessage(chatID, "Выберите: ")
 	msg.ReplyMarkup = keyboard
 	go b.Pull(chatID, *botBasic.NewChattable(msg))
+}
+
+func getChapterNums(k string) []int {
+	cloneK := strings.Clone(k)
+	nums := make([]int, 0)
+	for found := true; ; {
+		n := ""
+		n, k, found = strings.Cut(k, "no")
+		if !found {
+			break
+		} else {
+			cloneK = k
+		}
+		intN, err := strconv.Atoi(n)
+		if err == nil {
+			nums = append(nums, intN)
+		}
+	}
+	k = cloneK
+	intN, err := strconv.Atoi(k)
+	if err == nil {
+		nums = append(nums, intN)
+	}
+	return nums
 }
 
 func (b *TesterBot) handleCallbackQuery(callback *tgbotapi.CallbackQuery, user *databases.User) {
 	chatID := user.ID
 	switch {
-	case strings.HasPrefix(callback.Data, "cF"):
-		_, k, _ := strings.Cut(callback.Data, "cF")
-		k1, k2, _ := strings.Cut(k, "ph")
-		intK1, _ := strconv.Atoi(k1)
-		intK2, _ := strconv.Atoi(k2)
-		s, s1 := getFilename(intK1, intK2)
+	case strings.HasPrefix(callback.Data, "fl"):
+		_, k, _ := strings.Cut(callback.Data, "flno")
+		nums := getChapterNums(k)
+		s, s1 := getFilename(nums)
 		b.PullFile(s, chatID, 0, strings.Replace(s1, "_", " ", -1))
-	case strings.HasPrefix(callback.Data, "cH"):
-		_, k, _ := strings.Cut(callback.Data, "cH")
-		v, _ := strconv.Atoi(k)
-		b.showTextbookFiles(user, v)
+	case strings.HasPrefix(callback.Data, "l"):
+		_, k, _ := strings.Cut(callback.Data, "lno")
+		nums := getChapterNums(k)
+		b.showTextbookFiles(user, nums)
 	}
 }

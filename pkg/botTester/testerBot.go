@@ -46,7 +46,7 @@ func (b *TesterBot) Run() {
 		Description: "Вывести текущий результат",
 	}, tgbotapi.BotCommand{
 		Command:     "/study",
-		Description: "Открыть учебник",
+		Description: "Открыть письменные материалы",
 	})
 	for update := range updates {
 		b.HandleUpdate(&update)

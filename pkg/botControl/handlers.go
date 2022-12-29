@@ -76,7 +76,7 @@ func (b *ControlBot) handleCommand(message *tgbotapi.Message, chatID int64) {
 			"/user [id] - вывести результаты теста пользователя\n"+
 			"/clear - очистить все базы ответов\n"+
 			"/clearuser [id] - очистить результаты теста пользователя\n"+
-			"/usertasks [id] - вывести информацию о заданиях, которые получал пользователь\n"+
+			"/usertasks [id/nickname] - вывести информацию о заданиях, которые получал пользователь\n"+
 			"/task [taskID] - вывести задание по его номеру в базе\n"+
 			"/getdb - получить полную базу данных в .txt файлах\n"+
 			"/update - получить инструкцию о прочим настройкам\n"+
@@ -111,13 +111,19 @@ func (b *ControlBot) handleCommand(message *tgbotapi.Message, chatID int64) {
 		if user == "" {
 			b.PullText("Не введён ID пользователя", chatID, message.MessageID)
 		}
-		if ID, err := strconv.ParseInt(user, 10, 0); err == nil {
-			userN, err := databases.GetUser(b.DB, ID)
-			if err == nil {
-				databases.GetLastStats(b.DB, &userN)
-				b.getResult(&userN, chatID)
-			} else {
-				b.PullText("Пользователь не найден", chatID, message.MessageID)
+		userN, err := databases.GetUserByName(b.DB, user)
+		if err == nil {
+			databases.GetLastStats(b.DB, &userN)
+			b.getResult(&userN, chatID)
+		} else {
+			if ID, err := strconv.ParseInt(user, 10, 0); err == nil {
+				userN, err := databases.GetUser(b.DB, ID)
+				if err == nil {
+					databases.GetLastStats(b.DB, &userN)
+					b.getResult(&userN, chatID)
+				} else {
+					b.PullText("Пользователь не найден", chatID, message.MessageID)
+				}
 			}
 		}
 	case "clear":
@@ -185,8 +191,8 @@ func (b *ControlBot) handleCommand(message *tgbotapi.Message, chatID int64) {
 func (b *ControlBot) getResult(user *databases.User, chatID int64) {
 	if user.PollRun > 0 {
 		s := botTester.OutputSortedByKey(user)
-		b.PullText(fmt.Sprintf("Пользователь: %v\nСтатистика: %v%%\nОтветов: %v\nПравильных: %v%s",
-			user.ID, user.Corrects*100/user.PollRun, user.PollRun, user.Corrects, s), chatID, 0)
+		b.PullText(fmt.Sprintf("ID: %v\nПользователь: %v\nСтатистика: %v%%\nОтветов: %v\nПравильных: %v%s",
+			user.ID, user.Username, user.Corrects*100/user.PollRun, user.PollRun, user.Corrects, s), chatID, 0)
 	} else {
 		b.PullText("Статистика: Нет информации о пройденных тестах.", chatID, 0)
 	}
