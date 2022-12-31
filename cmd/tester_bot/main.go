@@ -9,7 +9,6 @@ import (
 	"log"
 	"os"
 	bt "study-bot/pkg/botTester"
-	"study-bot/pkg/databases"
 )
 
 func getToken() string {
@@ -44,7 +43,6 @@ func main() {
 		log.Fatal(err)
 	}
 	b := bt.NewTesterBot(botAPI, db)
-	b.Chapters = databases.CountChapters(b.DB)
 	//
 	//Start timer to send messages&callbacks
 	go b.TimeStart()

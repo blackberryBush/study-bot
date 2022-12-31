@@ -182,7 +182,11 @@ func (b *ControlBot) handleCommand(message *tgbotapi.Message, chatID int64) {
 		s = databases.GetAllUsers(b.DB)
 		b.PullFileBytes([]byte(s), chatID, message.MessageID, "users.txt")
 	case "update":
-		b.PullText("Инструкция: текст", chatID, message.MessageID)
+		b.PullText("Инструкция", chatID, message.MessageID)
+		b.PullFile("guide.txt", chatID, 0, "Инструкция.txt")
+		b.PullFile("options.yml", chatID, 0, "options.yml")
+		b.PullFile("tasks.csv", chatID, 0, "tasks.csv")
+		b.PullFile("token.yml", chatID, 0, "token.yml")
 	default:
 		b.handleUnknown()
 	}

@@ -115,6 +115,7 @@ func (b *TesterBot) handleCommand(message *tgbotapi.Message, user *databases.Use
 			"- при каждом новом запуске /test, старые результаты стираются", chatID, 0)
 	case "test":
 		databases.ClearUser(b.DB, chatID)
+		b.Chapters = databases.CountChapters(b.DB)
 		args := message.CommandArguments()
 		if args == "" {
 			b.PullText("Введите: /test [Группа,ФИО] (без пробелов)\nПример: /test БКС1902,ИвановАВ", chatID, message.MessageID)
@@ -176,6 +177,7 @@ func (b *TesterBot) handleText(message *tgbotapi.Message, user *databases.User) 
 }
 
 func (b *TesterBot) handlePollAnswer(ans *tgbotapi.PollAnswer, user *databases.User) {
+	databases.UpdateUser(b.DB, *user)
 	chatID := user.ID
 	if user.PollRun != -1 {
 		checkTask, checkChapter, checkCorrect := databases.GetTask(b.DB, ans.PollID, chatID)
